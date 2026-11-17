@@ -54,6 +54,12 @@ test('breakLines never starts a line with closing punctuation', () => {
   for (const line of lines) assert.ok(!P.NO_START[[...line][0]], `line starts with ${[...line][0]}`);
 });
 
+test('a newline in the input forces a line break', () => {
+  const measure = (u) => [...u].length * 10;
+  assert.deepStrictEqual(P.breakLines('甲乙\n丙丁', 1000, measure), ['甲乙', '丙丁']);
+  assert.deepStrictEqual(P.newCtx(measure).wrap('甲乙\n丙丁', 1000, 10, false), ['甲乙', '丙丁']);
+});
+
 test('dayOfYear is stable across daylight saving time', () => {
   assert.strictEqual(P.dayOfYear(new Date(2026, 3, 1)), 91);
   assert.strictEqual(P.dayOfYear(new Date(2026, 6, 1)), 182);

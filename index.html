@@ -216,7 +216,7 @@
     function push(u) {
       if (/^[A-Za-z0-9'\-]$/.test(u)) { word = (word || '') + u; return; }
       if (word !== null) { out.push(word); word = null; }
-      if (u !== '\n' && u !== '\r' && u !== '\t') out.push(u);
+      if (u !== '\r' && u !== '\t') out.push(u);
     }
     function piece(s) { segment(s).forEach(push); }
     var pos = 0;
@@ -244,6 +244,7 @@
       cur = []; used = 0;
     }
     units(text, keep).forEach(function (unit) {
+      if (unit === '\n') { flush(); return; }
       var w = measureFn(unit);
       if (cur.length === 0 && unit === ' ') return;
       if (used + w <= max || cur.length === 0 || NO_START[charsOf(unit)[0]]) {
@@ -262,7 +263,7 @@
 
   function clauses(text) {
     var out = [], cur = [];
-    var chars = charsOf(String(text).replace(/[\r\n\t]/g, ' '));
+    var chars = charsOf(String(text).replace(/[\r\t]/g, ' '));
     function flush() {
       var s = cur.join('').replace(/^\s+/, '').replace(/\s+$/, '');
       if (s !== '') out.push(s);
