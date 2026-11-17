@@ -49,11 +49,41 @@
   body.busy main { cursor:progress; }
   body.busy canvas { opacity:.55; }
 
+  .label-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:14px 0 4px; }
+  .label-row label { margin:0; }
+  .field { position:relative; }
+  .field input { padding-right:26px; }
+  .clear-btn { position:absolute; right:5px; top:50%; transform:translateY(-50%); width:18px; height:18px;
+               flex:none; min-width:0; padding:0; border:0; background:none; color:var(--muted);
+               font-size:15px; line-height:1; letter-spacing:0; cursor:pointer; }
+  .label-row .clear-btn { position:static; transform:none; }
+  .clear-btn:hover { background:none; color:var(--fg); }
+  .clear-btn:disabled { opacity:.3; cursor:default; }
+  .style-wrap { display:flex; align-items:center; gap:4px; }
+  .style-strip { flex:1; min-width:0; display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory;
+                 scrollbar-width:none; padding:2px 0; }
+  .style-strip::-webkit-scrollbar { display:none; }
+  .style-card { flex:none; width:72px; min-width:0; padding:0; border:1px solid var(--border); border-radius:2px;
+                background:#fff; scroll-snap-align:start; }
+  .style-card:hover { background:#fff; }
+  .style-card canvas { display:block; width:72px; height:auto; box-shadow:none; }
+  .style-card .thumb { width:72px; height:156px; display:flex; align-items:center; justify-content:center;
+                       font-size:24px; color:var(--muted); }
+  .style-card .name { font-size:11px; line-height:1.6; text-align:center; color:var(--muted); letter-spacing:0; }
+  .style-card[aria-pressed="true"] { border-color:var(--fg); box-shadow:0 0 0 1px var(--fg); }
+  .style-card[aria-pressed="true"] .name { color:var(--fg); }
+  .style-arrow { flex:none; width:20px; min-width:0; height:40px; padding:0; border:1px solid var(--border);
+                 background:#fff; color:var(--fg); font-size:14px; line-height:1; letter-spacing:0; }
+  .style-arrow:disabled { opacity:.3; cursor:default; }
+  @media (hover:none) { .style-arrow { display:none; } }
+
   @media (max-width:720px) {
     body { flex-direction:column; }
     main { order:-1; position:sticky; top:0; z-index:5; flex:none; height:42svh; padding:8px;
            background:var(--bg); box-shadow:0 1px 0 var(--border); }
     canvas { max-height:100%; cursor:zoom-in; }
+    .style-card, .style-card canvas, .style-card .thumb { width:88px; }
+    .style-card .thumb { height:191px; }
     #panel { width:auto; flex:none; border-right:0; border-top:1px solid var(--border); }
   }
   body.preview-full { overflow:hidden; }
@@ -66,26 +96,28 @@
   <h1>锁屏文字海报</h1>
   <p class="sub">纯灰阶 · 颗粒字 · 五套版心</p>
 
-  <label for="text">文字（可用【】标出关键词）</label>
+  <div class="label-row">
+    <label for="text">文字（可用【】标出关键词）</label>
+    <button type="button" class="clear-btn" data-clear="text" aria-label="清空文字" title="清空">×</button>
+  </div>
   <textarea id="text">人生代代无穷已，江月年年望相似。</textarea>
 
   <div class="row">
-    <div><label for="title">书名</label><input id="title" type="text" value="春江花月夜"></div>
-    <div><label for="author">作者</label><input id="author" type="text" value="张若虚"></div>
+    <div><label for="title">书名</label>
+      <div class="field"><input id="title" type="text" value="春江花月夜"><button type="button" class="clear-btn" data-clear="title" aria-label="清空书名" title="清空">×</button></div></div>
+    <div><label for="author">作者</label>
+      <div class="field"><input id="author" type="text" value="张若虚"><button type="button" class="clear-btn" data-clear="author" aria-label="清空作者" title="清空">×</button></div></div>
   </div>
 
   <label for="keyword">关键词（留空 = 自动）</label>
-  <input id="keyword" type="text" value="">
+  <div class="field"><input id="keyword" type="text" value=""><button type="button" class="clear-btn" data-clear="keyword" aria-label="清空关键词" title="清空">×</button></div>
 
-  <label for="style">版式</label>
-  <select id="style">
-    <option value="random">随机</option>
-    <option value="horizontal" selected>横排标题</option>
-    <option value="vertical">竖排</option>
-    <option value="backdrop">巨字铺底</option>
-    <option value="scatter">散落关键词</option>
-    <option value="collage">拼贴海报</option>
-  </select>
+  <label>版式</label>
+  <div class="style-wrap">
+    <button type="button" class="style-arrow" id="stylePrev" aria-label="上一版式">‹</button>
+    <div class="style-strip" id="styleStrip" role="group" aria-label="版式"></div>
+    <button type="button" class="style-arrow" id="styleNext" aria-label="下一版式">›</button>
+  </div>
 
   <label>壁纸大小</label>
   <div class="picker">
@@ -980,13 +1012,107 @@
     });
   })();
 
+  // ===== 版式卷轴 =====
+  var STYLE_LABELS = [['random', '随机'], ['horizontal', '横排标题'], ['vertical', '竖排'],
+    ['backdrop', '巨字铺底'], ['scatter', '散落关键词'], ['collage', '拼贴海报']];
+  var styleChoice = 'horizontal';
+  var THUMB = { w: 176, h: 381 };
+  var THUMB_SAMPLE = '人生代代无穷已，江月年年望相似。';
+
+  (function buildStyles() {
+    var strip = $('styleStrip');
+    STYLE_LABELS.forEach(function (it) {
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'style-card';
+      card.setAttribute('data-style', it[0]);
+      card.setAttribute('aria-pressed', it[0] === styleChoice ? 'true' : 'false');
+      if (it[0] === 'random') {
+        var glyph = document.createElement('div');
+        glyph.className = 'thumb';
+        glyph.textContent = '↻';
+        card.appendChild(glyph);
+      } else {
+        var cv = document.createElement('canvas');
+        cv.width = THUMB.w; cv.height = THUMB.h;
+        card.appendChild(cv);
+      }
+      var name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = it[1];
+      card.appendChild(name);
+      card.addEventListener('click', function () { selectStyle(it[0]); });
+      strip.appendChild(card);
+    });
+  })();
+
+  function selectStyle(s) {
+    styleChoice = s;
+    Array.prototype.forEach.call(document.querySelectorAll('.style-card'), function (c) {
+      c.setAttribute('aria-pressed', c.getAttribute('data-style') === s ? 'true' : 'false');
+    });
+    var strip = $('styleStrip'), sel = strip.querySelector('[aria-pressed="true"]');
+    if (sel) strip.scrollTo({ left: sel.offsetLeft - (strip.clientWidth - sel.clientWidth) / 2, behavior: 'smooth' });
+    generate();
+  }
+
+  function renderThumbs(text) {
+    var q = {
+      text: text.trim() ? text : THUMB_SAMPLE,
+      title: $('title').value.trim(),
+      author: $('author').value.trim(),
+      keyword: $('keyword').value.trim()
+    };
+    Array.prototype.forEach.call(document.querySelectorAll('.style-card canvas'), function (cv) {
+      var s = cv.parentNode.getAttribute('data-style');
+      paint(cv, plan(s, q, THUMB.w, THUMB.h, { vpos: 'center', halign: 'center' }).ops);
+    });
+  }
+
+  (function wireArrows() {
+    var strip = $('styleStrip');
+    function sync() {
+      $('stylePrev').disabled = strip.scrollLeft <= 0;
+      $('styleNext').disabled = strip.scrollLeft >= strip.scrollWidth - strip.clientWidth - 1;
+    }
+    $('stylePrev').addEventListener('click', function () {
+      strip.scrollBy({ left: -strip.clientWidth * 0.7, behavior: 'smooth' });
+    });
+    $('styleNext').addEventListener('click', function () {
+      strip.scrollBy({ left: strip.clientWidth * 0.7, behavior: 'smooth' });
+    });
+    strip.addEventListener('scroll', sync);
+    window.addEventListener('resize', sync);
+    sync();
+  })();
+
+  // ===== 输入框清空 =====
+  function syncClears() {
+    Array.prototype.forEach.call(document.querySelectorAll('.clear-btn'), function (b) {
+      b.disabled = $(b.getAttribute('data-clear')).value === '';
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.clear-btn'), function (b) {
+    b.addEventListener('click', function () {
+      var el = $(b.getAttribute('data-clear'));
+      el.value = '';
+      el.focus();
+      syncClears();
+      later();
+    });
+  });
+  syncClears();
+
   function generate() {
     var text = $('text').value;
+    setLineChars($('lineChars').value);
+    renderThumbs(text);
+    syncClears();
     if (!text.trim()) { status.textContent = '请输入一段文字'; return; }
     document.body.classList.add('busy');
     status.textContent = '生成中…';
     setTimeout(function () {
-      var style = $('style').value;
+      var style = styleChoice;
       if (style === 'random') style = STYLES[Math.floor(Math.random() * STYLES.length)];
       var anchor = ANCHORS[$('pos').value];
       var opts = { vpos: anchor[0], halign: anchor[1] };
@@ -999,7 +1125,7 @@
         keyword: $('keyword').value.trim()
       };
       canvas.width = W; canvas.height = H;
-      setLineChars($('lineChars').value);
+
       var res = plan(style, q, W, H, opts);
       paint(canvas, res.ops);
       last = { style: res.style, W: W, H: H };
@@ -1017,16 +1143,13 @@
   }
 
   ['text', 'title', 'author', 'keyword', 'cw', 'ch', 'lineChars'].forEach(function (id) {
-    $(id).addEventListener('input', later);
+    $(id).addEventListener('input', function () { syncClears(); later(); });
   });
-  ['style', 'pos'].forEach(function (id) {
-    $(id).addEventListener('change', generate);
-  });
+  $('pos').addEventListener('change', generate);
   $('gen').addEventListener('click', generate);
   $('shuffle').addEventListener('click', function () {
     var others = STYLES.filter(function (s) { return s !== last.style; });
-    $('style').value = others[Math.floor(Math.random() * others.length)];
-    generate();
+    selectStyle(others[Math.floor(Math.random() * others.length)]);
   });
   $('save').addEventListener('click', function () {
     canvas.toBlob(function (blob) {
