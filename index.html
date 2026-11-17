@@ -48,6 +48,17 @@
            max-height:calc(100vh - 48px); display:block; }
   body.busy main { cursor:progress; }
   body.busy canvas { opacity:.55; }
+
+  @media (max-width:720px) {
+    body { flex-direction:column; }
+    main { order:-1; position:sticky; top:0; z-index:5; flex:none; height:42svh; padding:8px;
+           background:var(--bg); box-shadow:0 1px 0 var(--border); }
+    canvas { max-height:100%; cursor:zoom-in; }
+    #panel { width:auto; flex:none; border-right:0; border-top:1px solid var(--border); }
+  }
+  body.preview-full { overflow:hidden; }
+  body.preview-full main { position:fixed; inset:0; height:100dvh; padding:0; z-index:60; cursor:zoom-out; }
+  body.preview-full canvas { max-height:100dvh; max-width:100vw; box-shadow:none; }
 </style>
 </head>
 <body>
@@ -114,7 +125,7 @@
 </aside>
 
 <main>
-  <canvas id="poster" role="img" aria-label="海报预览"></canvas>
+  <canvas id="poster" role="img" aria-label="海报预览" tabindex="0" title="点击放大预览"></canvas>
 </main>
 
 <script src="typo_words.js"></script>
@@ -965,6 +976,7 @@
     });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !sizeMenu.hidden) { closeSizeMenu(); sizeBtn.focus(); }
+      else if (e.key === 'Escape') document.body.classList.remove('preview-full');
     });
   })();
 
@@ -1024,6 +1036,12 @@
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
     }, 'image/png');
+  });
+
+  function togglePreview() { document.body.classList.toggle('preview-full'); }
+  canvas.addEventListener('click', togglePreview);
+  canvas.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePreview(); }
   });
 
   generate();
