@@ -78,8 +78,8 @@
 
   <label>壁纸大小</label>
   <div class="picker">
-    <button type="button" class="pick-btn" id="sizeBtn" aria-haspopup="listbox" aria-expanded="false">iPhone 18 Pro Max</button>
-    <div class="pick-menu" id="sizeMenu" role="listbox" hidden></div>
+    <button type="button" class="pick-btn" id="sizeBtn" aria-expanded="false">iPhone 18 Pro Max</button>
+    <div class="pick-menu" id="sizeMenu" hidden></div>
   </div>
   <div class="hint" id="ratio"></div>
   <div class="row" id="customRow" hidden>
@@ -111,7 +111,7 @@
 </aside>
 
 <main>
-  <canvas id="poster"></canvas>
+  <canvas id="poster" role="img" aria-label="海报预览"></canvas>
 </main>
 
 <script src="typo_words.js"></script>
@@ -279,9 +279,9 @@
   }
 
   var POS = { n: 3, l: 2.5, i: 2.5, s: 1.5, j: 1.5, a: 1.2, v: 1, b: 1, z: 1, t: 1 };
-  var STOP = setOf('就是 一个 什么 没有 可以 这个 那个 我们 你们 他们 自己 已经 因为 所以 但是 如果 还是 只是 不是 这样 那样 ' +
+  var STOP = new Set(('就是 一个 什么 没有 可以 这个 那个 我们 你们 他们 自己 已经 因为 所以 但是 如果 还是 只是 不是 这样 那样 ' +
     '怎么 为什么 时候 东西 主义 最好 一切 一种 一样 所有 应该 能够 知道 觉得 需要 成为 发现 找出 出来 起来 之中 之间 ' +
-    '以后 以前 现在 永远 总是 真正 彻头彻尾 每个 这些 那些 一些 有些 其实 甚至 或者 而是 非常 比较 不会 不能 开始');
+    '以后 以前 现在 永远 总是 真正 彻头彻尾 每个 这些 那些 一些 有些 其实 甚至 或者 而是 非常 比较 不会 不能 开始').split(/\s+/).filter(Boolean));
   var EN_STOP = new Set(('the and that this with from have been were they their there which would could should about ' +
     'into than then them what when where while your yours because being other some such only very just more most ' +
     'better someone something everything nothing').split(' '));
@@ -295,7 +295,7 @@
       var e = d.get(w);
       if (e === undefined) return;
       var pos = POS[String.fromCharCode(e % 256)];
-      if (!pos || STOP[w]) return;
+      if (!pos || STOP.has(w)) return;
       var b = Math.floor(e / 256);
       var s = pos + (charsOf(w).length === 4 ? 0.3 : 0)
         + Math.min(11, Math.max(0, 16 - b)) * 0.3 - (b < 5 ? (5 - b) * 0.4 : 0)
@@ -337,7 +337,7 @@
   }
   function attribution(q) {
     var parts = [];
-    if (q.title) parts.push('《' + q.title + '》');
+    if (q.title) parts.push(/^《.*》$/.test(q.title) ? q.title : '《' + q.title + '》');
     if (q.author) parts.push(q.author);
     return parts.length ? '—— ' + parts.join(' ') : '';
   }
@@ -397,7 +397,7 @@
       runs(line, emph).forEach(function (r) {
         var s = r[1] ? size * c.kscale : size;
         textOp(ops, r[0], x, y + (big - s) * 0.88, s, gray, bold);
-        x += measureFn(r[1], s, bold);
+        x += measureFn(r[0], s, bold);
       });
       return big * lh;
     };
@@ -656,8 +656,10 @@
   };
 
   function dayOfYear(d) {
-    return Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 86400000) + 1;
+    return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) -
+      Date.UTC(d.getFullYear(), 0, 1)) / 86400000) + 1;
   }
+  function yearDays(y) { return dayOfYear(new Date(y, 11, 31)); }
   function dateLine(d) {
     var mm = ('0' + (d.getMonth() + 1)).slice(-2);
     var dd = ('0' + d.getDate()).slice(-2);
@@ -731,7 +733,7 @@
     var by = H - m - small;
     rectOp(ops, m, by - small * 0.9, inner, 1, BLACK);
     textOp(ops, 'MOON · 月读', m, by, small, INK, true);
-    var tail = doy + ' / 365';
+    var tail = doy + ' / ' + yearDays(now.getFullYear());
     textOp(ops, tail, W - m - measure(tail, small, false), by, small, INK, false);
     return ops;
   };
@@ -752,7 +754,13 @@
       topWords(body, 4).forEach(function (w) { if (p.words.length < 3 && w !== kw) p.words.push(w); });
       if (!kw) style = 'horizontal';
     }
-    return { style: style, ops: LAYOUTS[style](p, W, H, measure, opts) };
+    var ops = LAYOUTS[style](p, W, H, measure, opts);
+    var bottom = 0;
+    ops.forEach(function (op) {
+      if (op.t === 'text' && op.grain) return; // giant decorative words bleed off the edge on purpose
+      bottom = Math.max(bottom, op.y + (op.t === 'text' ? op.size : op.h));
+    });
+    return { style: style, ops: ops, overflow: bottom > H };
   }
 
   // ===== 颗粒 =====
@@ -782,8 +790,10 @@
     var out = tctx.createImageData(tw, th);
     var dst = out.data;
     var depth = 255 - op.gray;
-    for (var y = 0; y < th; y++) {
-      for (var x = 0; x < tw; x++) {
+    // shortcut: glyphs over 3MP get 2px grain blocks; tighten if the coarser grain ever shows
+    var step = tw * th > 3e6 ? 2 : 1;
+    for (var y = 0; y < th; y += step) {
+      for (var x = 0; x < tw; x += step) {
         var si = (y * tw + x) * 4;
         var cov = 255 - src[si];
         if (cov <= 8) continue;
@@ -792,7 +802,12 @@
         var k = 0.78 + coarse * 0.32 + (fine - 0.5) * 0.28;
         if (fine < 0.025 || (coarse < 0.07 && fine < 0.5)) k = 0.15;
         var a = Math.min(255, depth * k) * cov / 255;
-        dst[si] = op.gray; dst[si + 1] = op.gray; dst[si + 2] = op.gray; dst[si + 3] = a;
+        for (var dy = 0; dy < step && y + dy < th; dy++) {
+          for (var dx = 0; dx < step && x + dx < tw; dx++) {
+            var di = ((y + dy) * tw + x + dx) * 4;
+            dst[di] = op.gray; dst[di + 1] = op.gray; dst[di + 2] = op.gray; dst[di + 3] = a;
+          }
+        }
       }
     }
     tctx.putImageData(out, 0, 0);
@@ -967,7 +982,8 @@
       paint(canvas, res.ops);
       last = { style: res.style, W: W, H: H };
       $('pos').disabled = res.style === 'collage';
-      status.textContent = res.style + ' · ' + W + ' × ' + H + ' · 点击「下载 PNG」保存';
+      status.textContent = res.style + ' · ' + W + ' × ' + H +
+        (res.overflow ? ' · 文字过长，超出部分已截断' : '') + ' · 点击「下载 PNG」保存';
       document.body.classList.remove('busy');
     }, 20);
   }
