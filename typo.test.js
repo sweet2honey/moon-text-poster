@@ -33,7 +33,7 @@ global.document = {
 const html = fs.readFileSync(`${__dirname}/index.html`, 'utf8');
 const code = html.slice(html.indexOf('(function () {'), html.indexOf('// ===== 界面 ====='));
 eval(code + `
-globalThis.poster = { segment, keywordOf, breakLines, dayOfYear, yearDays, attribution, plan, NO_START, newCtx };
+globalThis.poster = { segment, keywordOf, breakLines, dayOfYear, yearDays, attribution, plan, NO_START, newCtx, setLineChars };
 })()`);
 const P = globalThis.poster;
 
@@ -58,6 +58,16 @@ test('a newline in the input forces a line break', () => {
   const measure = (u) => [...u].length * 10;
   assert.deepStrictEqual(P.breakLines('甲乙\n丙丁', 1000, measure), ['甲乙', '丙丁']);
   assert.deepStrictEqual(P.newCtx(measure).wrap('甲乙\n丙丁', 1000, 10, false), ['甲乙', '丙丁']);
+});
+
+test('the line character cap limits characters per line', () => {
+  const measure = (u) => [...u].length * 10;
+  assert.deepStrictEqual(P.breakLines('甲乙丙丁戊己', 1000, measure), ['甲乙丙丁戊己']);
+  P.setLineChars(3);
+  assert.deepStrictEqual(P.breakLines('甲乙丙丁戊己', 1000, measure), ['甲乙丙', '丁戊己']);
+  P.setLineChars(2);
+  assert.deepStrictEqual(P.breakLines('甲，乙', 1000, measure), ['甲，', '乙']);
+  P.setLineChars(0);
 });
 
 test('dayOfYear is stable across daylight saving time', () => {

@@ -96,6 +96,9 @@
     <option value="br">右下</option>
   </select>
 
+  <label for="lineChars">每行字数（0 = 自动）</label>
+  <input id="lineChars" type="number" min="0" max="100" value="0">
+
   <div class="btns">
     <button class="primary" id="gen">生成</button>
     <button id="shuffle">随机版式</button>
@@ -235,27 +238,31 @@
     return out;
   }
 
-  function breakLines(text, max, measureFn, keep) {
+  var MAXCHARS = 0;
+  function setLineChars(n) { MAXCHARS = Math.max(0, Math.min(100, +n || 0)); }
+
+  function breakLines(text, max, measureFn, keep, cap) {
     measureFn = measureFn || function (u) { return charsOf(u).length; };
-    var lines = [], cur = [], used = 0;
+    var lim = cap === undefined ? MAXCHARS : cap;
+    var lines = [], cur = [], used = 0, count = 0;
     function flush() {
       while (cur.length && cur[cur.length - 1] === ' ') cur.pop();
       if (cur.length) lines.push(cur.join(''));
-      cur = []; used = 0;
+      cur = []; used = 0; count = 0;
     }
+    function add(unit, w) { cur.push(unit); used += w; count += charsOf(unit).length; }
     units(text, keep).forEach(function (unit) {
       if (unit === '\n') { flush(); return; }
-      var w = measureFn(unit);
       if (cur.length === 0 && unit === ' ') return;
-      if (used + w <= max || cur.length === 0 || NO_START[charsOf(unit)[0]]) {
-        cur.push(unit); used += w;
-        return;
+      var n = charsOf(unit).length, w = measureFn(unit);
+      var hang = NO_START[charsOf(unit)[0]];
+      if (!hang && cur.length && (used + w > max || (lim && count + n > lim))) {
+        var carry = [];
+        while (cur.length > 1 && NO_END[charsOf(cur[cur.length - 1]).pop()]) carry.unshift(cur.pop());
+        flush();
+        carry.forEach(function (u) { add(u, measureFn(u)); });
       }
-      var carry = [];
-      while (cur.length > 1 && NO_END[charsOf(cur[cur.length - 1]).pop()]) carry.unshift(cur.pop());
-      flush();
-      carry.forEach(function (u) { cur.push(u); used += measureFn(u); });
-      if (!(cur.length === 0 && unit === ' ')) { cur.push(unit); used += w; }
+      add(unit, w);
     });
     flush();
     return lines;
@@ -725,7 +732,7 @@
     info.push(charsOf(q.body).length + ' 字', d);
     var iy = midTop;
     info.forEach(function (line) {
-      breakLines(line, rightW, function (u) { return measure(u, small, false); }).forEach(function (l) {
+      breakLines(line, rightW, function (u) { return measure(u, small, false); }, null, 0).forEach(function (l) {
         textOp(ops, l, rx, iy, small, INK, false);
         iy += small * 1.6;
       });
@@ -979,6 +986,7 @@
         keyword: $('keyword').value.trim()
       };
       canvas.width = W; canvas.height = H;
+      setLineChars($('lineChars').value);
       var res = plan(style, q, W, H, opts);
       paint(canvas, res.ops);
       last = { style: res.style, W: W, H: H };
@@ -995,7 +1003,7 @@
     timer = setTimeout(generate, 350);
   }
 
-  ['text', 'title', 'author', 'keyword', 'cw', 'ch'].forEach(function (id) {
+  ['text', 'title', 'author', 'keyword', 'cw', 'ch', 'lineChars'].forEach(function (id) {
     $(id).addEventListener('input', later);
   });
   ['style', 'pos'].forEach(function (id) {
