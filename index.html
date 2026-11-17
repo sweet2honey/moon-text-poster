@@ -390,6 +390,7 @@
       return h;
     };
     c.fit = function (text, width, maxSize, minSize, maxH, lh, bold) {
+      if (MAXCHARS) maxSize = Math.min(maxSize, width / (MAXCHARS * measureFn('国', 100, bold) / 100));
       var size = maxSize, lines;
       for (var guard = 0; guard < 400; guard++) {
         lines = c.wrap(text, width, size, bold);

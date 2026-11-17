@@ -61,10 +61,14 @@ test('a newline in the input forces a line break', () => {
 });
 
 test('the line character cap limits characters per line', () => {
-  const measure = (u) => [...u].length * 10;
+  const measure = (u, px) => [...u].length * (px || 10);
   assert.deepStrictEqual(P.breakLines('甲乙丙丁戊己', 1000, measure), ['甲乙丙丁戊己']);
   P.setLineChars(3);
   assert.deepStrictEqual(P.breakLines('甲乙丙丁戊己', 1000, measure), ['甲乙丙', '丁戊己']);
+  P.setLineChars(4);
+  const r = P.newCtx(measure).fit('甲乙丙丁戊己庚辛', 400, 200, 10, 5000, 1.2, true);
+  assert.ok(r.size <= 100, `size ${r.size} should shrink so 4 chars fit 400px`);
+  assert.ok(r.lines.every((l) => [...l].length <= 4));
   P.setLineChars(2);
   assert.deepStrictEqual(P.breakLines('甲，乙', 1000, measure), ['甲，', '乙']);
   P.setLineChars(0);
