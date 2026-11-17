@@ -147,9 +147,7 @@
   <input id="lineChars" type="number" min="0" max="100" value="0">
 
   <div class="btns">
-    <button class="primary" id="gen">生成</button>
-    <button id="shuffle">随机版式</button>
-    <button id="save">下载 PNG</button>
+    <button class="primary" id="save">下载 PNG</button>
   </div>
   <div id="status"></div>
 
@@ -1150,11 +1148,7 @@
     $(id).addEventListener('input', function () { syncClears(); later(); });
   });
   $('pos').addEventListener('change', generate);
-  $('gen').addEventListener('click', generate);
-  $('shuffle').addEventListener('click', function () {
-    var others = STYLES.filter(function (s) { return s !== last.style; });
-    selectStyle(others[Math.floor(Math.random() * others.length)]);
-  });
+
   $('save').addEventListener('click', function () {
     canvas.toBlob(function (blob) {
       var a = document.createElement('a');
