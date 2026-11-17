@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>锁屏文字海报 · Moon</title>
+<style>
+  :root { --fg:#1c1c1c; --muted:#777; --border:#d6d3cc; --surface:#fff; --bg:#e9e7e1; }
+  * { box-sizing:border-box; }
+  body { margin:0; display:flex; min-height:100vh; background:var(--bg); color:var(--fg);
+         font:14px/1.6 "Songti SC","Noto Serif CJK SC",serif; }
+  #panel { width:320px; flex:none; padding:20px; border-right:1px solid var(--border);
+           background:var(--surface); overflow-y:auto; }
+  #panel h1 { font-size:16px; margin:0 0 4px; letter-spacing:.1em; }
+  #panel .sub { color:var(--muted); font-size:12px; margin:0 0 18px; letter-spacing:.05em; }
+  label { display:block; font-size:12px; color:var(--muted); margin:14px 0 4px; letter-spacing:.08em; }
+  textarea, input[type=text], input[type=number], select {
+    width:100%; padding:7px 9px; border:1px solid var(--border); border-radius:2px;
+    background:#fff; color:var(--fg); font:13px/1.6 inherit; }
+  textarea { resize:vertical; min-height:86px; }
+  .row { display:flex; gap:8px; }
+  .row > div { flex:1; min-width:0; }
+  .row[hidden] { display:none; }
+  .hint { font-size:11px; color:var(--muted); margin-top:4px; letter-spacing:.05em; }
+  .picker { position:relative; }
+  .pick-btn { display:block; width:100%; text-align:left; padding:7px 30px 7px 9px; border:1px solid var(--border);
+              border-radius:2px; background:#fff; font:13px/1.6 inherit; letter-spacing:0; color:var(--fg); }
+  .pick-btn::after { content:''; position:absolute; right:11px; top:50%; margin-top:-2px;
+                     border:5px solid transparent; border-top-color:var(--fg); }
+  .pick-menu { position:absolute; z-index:20; left:0; right:0; margin-top:4px; max-height:320px; overflow:auto;
+               background:#fff; border:1px solid var(--border); box-shadow:0 8px 20px rgba(0,0,0,.12); }
+  .pick-menu .group { padding:5px 9px; font-size:11px; color:var(--muted); background:#faf9f6; letter-spacing:.08em; }
+  .pick-menu button { display:block; width:100%; text-align:left; padding:7px 9px; border:0; border-radius:0;
+                      background:#fff; font:13px/1.5 inherit; letter-spacing:0; color:var(--fg); }
+  .pick-menu button:hover { background:#f2f0eb; }
+  .pick-menu button[aria-selected="true"] { background:#eeebe4; }
+  .btns { display:flex; gap:8px; margin-top:20px; flex-wrap:wrap; }
+  button { flex:1; min-width:76px; padding:9px 10px; border:1px solid var(--fg); border-radius:2px;
+           background:#fff; color:var(--fg); font:13px/1 inherit; letter-spacing:.1em; cursor:pointer; }
+  button:hover { background:#f2f0eb; }
+  button.primary { background:var(--fg); color:#fff; }
+  button.primary:hover { background:#000; }
+  #status { margin-top:12px; font-size:12px; color:var(--muted); min-height:1.6em; }
+  #note { margin-top:18px; padding-top:12px; border-top:1px solid var(--border);
+          font-size:11px; line-height:1.8; color:var(--muted); }
+  main { flex:1; display:flex; align-items:center; justify-content:center; padding:24px; min-width:0; }
+  canvas { background:#fff; box-shadow:0 2px 24px rgba(0,0,0,.14); max-width:100%;
+           max-height:calc(100vh - 48px); display:block; }
+  body.busy main { cursor:progress; }
+  body.busy canvas { opacity:.55; }
+</style>
+</head>
+<body>
+<aside id="panel">
+  <h1>锁屏文字海报</h1>
+  <p class="sub">纯灰阶 · 颗粒字 · 五套版心</p>
+
+  <label for="text">文字（可用【】标出关键词）</label>
+  <textarea id="text">我们每个人，都对所有人负有罪责。人一旦习惯了痛苦，痛苦也就成了他的家。</textarea>
+
+  <div class="row">
+    <div><label for="title">书名</label><input id="title" type="text" value="月读"></div>
+    <div><label for="author">作者</label><input id="author" type="text" value=""></div>
+  </div>
+
+  <label for="keyword">关键词（留空 = 自动）</label>
+  <input id="keyword" type="text" value="">
+
+  <label for="style">版式</label>
+  <select id="style">
+    <option value="random">随机</option>
+    <option value="horizontal" selected>横排标题</option>
+    <option value="vertical">竖排</option>
+    <option value="backdrop">巨字铺底</option>
+    <option value="scatter">散落关键词</option>
+    <option value="collage">拼贴海报</option>
+  </select>
+
+  <label>壁纸大小</label>
+  <div class="picker">
+    <button type="button" class="pick-btn" id="sizeBtn" aria-haspopup="listbox" aria-expanded="false">iPhone 18 Pro Max</button>
+    <div class="pick-menu" id="sizeMenu" role="listbox" hidden></div>
+  </div>
+  <div class="hint" id="ratio"></div>
+  <div class="row" id="customRow" hidden>
+    <div><label for="cw">宽</label><input id="cw" type="number" min="320" max="7680" value="1170"></div>
+    <div><label for="ch">高</label><input id="ch" type="number" min="320" max="7680" value="2532"></div>
+  </div>
+
+  <label for="pos">文字位置</label>
+  <select id="pos">
+    <option value="center" selected>居中</option>
+    <option value="tl">左上</option>
+    <option value="tr">右上</option>
+    <option value="bl">左下</option>
+    <option value="br">右下</option>
+  </select>
+
+  <div class="btns">
+    <button class="primary" id="gen">生成</button>
+    <button id="shuffle">随机版式</button>
+    <button id="save">下载 PNG</button>
+  </div>
+  <div id="status"></div>
+
+  <div id="note">
+    灰阶六档（0/34/102/136/200/112）与颗粒算法移植自 book.koplugin/features/lockscreen/typo.lua。<br>
+    拼贴版式为整页网格，忽略文字位置；竖排版式在横屏画布上自动改用横排。<br>
+    导出按所选像素输出 PNG，不缩放。
+  </div>
+</aside>
+
+<main>
+  <canvas id="poster"></canvas>
+</main>
+
+<script src="typo_words.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ===== 常量：灰阶与字体 =====
+  var BLACK = 0x00, INK = 0x22, GRAY = 0x66, RULE = 0x88, PALE = 0xC8, SMOKE = 0x70;
+  var FONT = '"Songti SC","Noto Serif CJK SC","Source Han Serif SC","Noto Serif CJK TC",' +
+             '"Noto Serif CJK HK","Noto Serif CJK JP","AR PL UMing CN",serif';
+  var STYLES = ['horizontal', 'vertical', 'backdrop', 'scatter', 'collage'];
+
+  var charsOf = function (s) { return Array.from(s || ''); };
+  function fontFor(px, bold) { return (bold ? 'bold ' : 'normal ') + px + 'px ' + FONT; }
+
+  // ===== 测量 =====
+  var mctx = document.createElement('canvas').getContext('2d');
+  var mcache = new Map();
+  function measure(s, px, bold) {
+    px = Math.max(6, Math.round(px));
+    if (px < 8) return measure(s, 100, bold) * px / 100;
+    var key = (bold ? 'b' : 'n') + px + '|' + s;
+    var hit = mcache.get(key);
+    if (hit !== undefined) return hit;
+    mctx.font = fontFor(px, bold);
+    var w = mctx.measureText(s).width;
+    mcache.set(key, w);
+    return w;
+  }
+
+  // ===== 文本规则（移植 typo_text.lua）=====
+  function setOf(str) { var o = Object.create(null); charsOf(str).forEach(function (c) { o[c] = true; }); return o; }
+  var NO_START = setOf('，。、；：！？）》」』】〉〕…—·‧,.;:!?)]}%’”');
+  var NO_END = setOf('（《「『【〈〔“‘([{');
+  var PUNCT = setOf('，。、；：！？（）《》「」『』【】〈〉〔〕…—·‧,.;:!?()[]{}“”‘’ ');
+  var CLAUSE_END = setOf('，。、；：！？…,;:!?');
+  var VERTICAL = {
+    '，': '︐', '、': '︑', '。': '︒', '：': '︓', '；': '︔', '！': '︕', '？': '︖',
+    '…': '︙', '—': '︱', '－': '︲', '（': '︵', '）': '︶', '《': '︽', '》': '︾',
+    '〈': '︿', '〉': '﹀', '「': '﹁', '」': '﹂', '『': '﹃', '』': '﹄',
+    '【': '︻', '】': '︼', '“': '﹁', '”': '﹂', '‘': '﹃', '’': '﹄',
+    '(': '︵', ')': '︶', ',': '︐', '.': '︒', ':': '︓', ';': '︔', '!': '︕', '?': '︖'
+  };
+  function vertical(ch) { return VERTICAL[ch] || ch; }
+
+  var DICT = null;
+  function loadDict() {
+    if (DICT) return DICT;
+    var d = new Map();
+    if (typeof WORDS_TEXT === 'string') {
+      var b = null, p = null;
+      var lines = WORDS_TEXT.split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (/^@[a-z][a-zA-Z]$/.test(line)) {
+          b = line.charCodeAt(1) - 97; p = line.charCodeAt(2);
+        } else if (b !== null && line && line.charAt(0) !== '#') {
+          var ws = line.split(/\s+/);
+          for (var j = 0; j < ws.length; j++) if (ws[j]) d.set(ws[j], b * 256 + p);
+        }
+      }
+    }
+    return (DICT = d);
+  }
+
+  function isHan(ch) { return ch.length === 1 && ch >= '\u4e00' && ch <= '\u9fff'; }
+
+  function segment(text) {
+    var d = loadDict(), out = [], run = [];
+    function flush() {
+      var n = run.length;
+      if (!n) return;
+      var best = new Array(n + 1), from = new Array(n + 1);
+      best[0] = 0;
+      for (var i = 1; i <= n; i++) {
+        best[i] = best[i - 1] - 24; from[i] = i - 1;
+        for (var len = 2; len <= Math.min(4, i); len++) {
+          var e = d.get(run.slice(i - len, i).join(''));
+          if (e === undefined) continue;
+          var bucket = Math.floor(e / 256);
+          if (best[i - len] + bucket - 26 > best[i]) {
+            best[i] = best[i - len] + bucket - 26; from[i] = i - len;
+          }
+        }
+      }
+      var seg = [];
+      for (var k = n; k > 0; k = from[k]) seg.unshift(run.slice(from[k], k).join(''));
+      out.push.apply(out, seg);
+      run = [];
+    }
+    charsOf(text).forEach(function (ch) {
+      if (isHan(ch)) run.push(ch);
+      else { flush(); out.push(ch); }
+    });
+    flush();
+    return out;
+  }
+
+  function units(text, keep) {
+    var out = [], word = null;
+    function push(u) {
+      if (/^[A-Za-z0-9'\-]$/.test(u)) { word = (word || '') + u; return; }
+      if (word !== null) { out.push(word); word = null; }
+      if (u !== '\n' && u !== '\r' && u !== '\t') out.push(u);
+    }
+    function piece(s) { segment(s).forEach(push); }
+    var pos = 0;
+    if (keep) {
+      while (true) {
+        var a = text.indexOf(keep, pos);
+        if (a < 0) break;
+        piece(text.slice(pos, a));
+        if (word !== null) { out.push(word); word = null; }
+        out.push(keep);
+        pos = a + keep.length;
+      }
+    }
+    piece(text.slice(pos));
+    if (word !== null) out.push(word);
+    return out;
+  }
+
+  function breakLines(text, max, measureFn, keep) {
+    measureFn = measureFn || function (u) { return charsOf(u).length; };
+    var lines = [], cur = [], used = 0;
+    function flush() {
+      while (cur.length && cur[cur.length - 1] === ' ') cur.pop();
+      if (cur.length) lines.push(cur.join(''));
+      cur = []; used = 0;
+    }
+    units(text, keep).forEach(function (unit) {
+      var w = measureFn(unit);
+      if (cur.length === 0 && unit === ' ') return;
+      if (used + w <= max || cur.length === 0 || NO_START[charsOf(unit)[0]]) {
+        cur.push(unit); used += w;
+        return;
+      }
+      var carry = [];
+      while (cur.length > 1 && NO_END[charsOf(cur[cur.length - 1]).pop()]) carry.unshift(cur.pop());
+      flush();
+      carry.forEach(function (u) { cur.push(u); used += measureFn(u); });
+      if (!(cur.length === 0 && unit === ' ')) { cur.push(unit); used += w; }
+    });
+    flush();
+    return lines;
+  }
+
+  function clauses(text) {
+    var out = [], cur = [];
+    var chars = charsOf(String(text).replace(/[\r\n\t]/g, ' '));
+    function flush() {
+      var s = cur.join('').replace(/^\s+/, '').replace(/\s+$/, '');
+      if (s !== '') out.push(s);
+      cur = [];
+    }
+    for (var i = 0; i < chars.length; i++) {
+      var ch = chars[i], nxt = chars[i + 1];
+      cur.push(ch);
+      if (CLAUSE_END[ch] && !(nxt && (CLAUSE_END[nxt] || NO_START[nxt])) &&
+          (charsOf(ch).length > 1 || ch.charCodeAt(0) > 127 || nxt === undefined || nxt === ' ')) flush();
+    }
+    flush();
+    return out;
+  }
+
+  var POS = { n: 3, l: 2.5, i: 2.5, s: 1.5, j: 1.5, a: 1.2, v: 1, b: 1, z: 1, t: 1 };
+  var STOP = setOf('就是 一个 什么 没有 可以 这个 那个 我们 你们 他们 自己 已经 因为 所以 但是 如果 还是 只是 不是 这样 那样 ' +
+    '怎么 为什么 时候 东西 主义 最好 一切 一种 一样 所有 应该 能够 知道 觉得 需要 成为 发现 找出 出来 起来 之中 之间 ' +
+    '以后 以前 现在 永远 总是 真正 彻头彻尾 每个 这些 那些 一些 有些 其实 甚至 或者 而是 非常 比较 不会 不能 开始');
+  var EN_STOP = new Set(('the and that this with from have been were they their there which would could should about ' +
+    'into than then them what when where while your yours because being other some such only very just more most ' +
+    'better someone something everything nothing').split(' '));
+  var MIN_SCORE = 2.5;
+
+  function rankWords(text) {
+    var d = loadDict(), segs = segment(text);
+    var seen = Object.create(null), best = Object.create(null), at = Object.create(null);
+    segs.forEach(function (w) { seen[w] = (seen[w] || 0) + 1; });
+    segs.forEach(function (w, i) {
+      var e = d.get(w);
+      if (e === undefined) return;
+      var pos = POS[String.fromCharCode(e % 256)];
+      if (!pos || STOP[w]) return;
+      var b = Math.floor(e / 256);
+      var s = pos + (charsOf(w).length === 4 ? 0.3 : 0)
+        + Math.min(11, Math.max(0, 16 - b)) * 0.3 - (b < 5 ? (5 - b) * 0.4 : 0)
+        + 0.8 * (i + 1) / segs.length + (seen[w] - 1) * 1.5;
+      if (best[w] === undefined || s > best[w]) { best[w] = s; at[w] = i + 1; }
+    });
+    var list = Object.keys(best).map(function (w) { return [w, best[w], at[w]]; });
+    if (list.length === 0) {
+      (text.match(/[A-Za-z]+/g) || []).forEach(function (w) {
+        if (w.length >= 4 && !EN_STOP.has(w.toLowerCase())) list.push([w, MIN_SCORE + w.length * 0.2, list.length]);
+      });
+    }
+    list.sort(function (a, b) { return b[1] - a[1] || a[2] - b[2]; });
+    return list;
+  }
+
+  function keywordOf(text) {
+    var marked = /【(.*?)】/.exec(text);
+    if (marked && marked[1] !== '') return marked[1];
+    var top = rankWords(text)[0];
+    return top && top[1] >= MIN_SCORE ? top[0] : null;
+  }
+
+  function topWords(text, n) {
+    return rankWords(text).slice(0, n).map(function (it) { return it[0]; });
+  }
+
+  function strip(text) { return text.replace(/【/g, '').replace(/】/g, ''); }
+
+  // ===== 绘制指令 =====
+  function fmt(n) { return Math.floor(n + 0.5); }
+
+  function textOp(ops, s, x, y, size, gray, bold, grain) {
+    ops.push({ t: 'text', s: s, x: fmt(x), y: fmt(y), size: fmt(size),
+      gray: gray, bold: !!bold, grain: !!grain });
+  }
+  function rectOp(ops, x, y, w, h, gray) {
+    ops.push({ t: 'rect', x: fmt(x), y: fmt(y), w: Math.max(1, fmt(w)), h: Math.max(1, fmt(h)), gray: gray });
+  }
+  function attribution(q) {
+    var parts = [];
+    if (q.title) parts.push('《' + q.title + '》');
+    if (q.author) parts.push(q.author);
+    return parts.length ? '—— ' + parts.join(' ') : '';
+  }
+  function runs(line, kw) {
+    var out = [], pos = 0;
+    if (kw) {
+      while (true) {
+        var a = line.indexOf(kw, pos);
+        if (a < 0) break;
+        if (a > pos) out.push([line.slice(pos, a), false]);
+        out.push([kw, true]);
+        pos = a + kw.length;
+      }
+    }
+    if (pos < line.length) out.push([line.slice(pos), false]);
+    return out;
+  }
+
+  // 排版上下文：measure + 行内关键词放大
+  function newCtx(measureFn, kw, kscale) {
+    var c = { kscale: kscale || 1 };
+    var emph = c.kscale > 1 && kw ? kw : null;
+    function unitW(u, size, bold) { return measureFn(u, (emph && u === emph) ? size * c.kscale : size, bold); }
+    c.unitW = unitW;
+    c.lineW = function (line, size, bold) {
+      var chars = charsOf(line), hang = chars[chars.length - 1], sum = 0;
+      runs(line, emph).forEach(function (r) { sum += unitW(r[0], size, bold); });
+      if (hang && NO_START[hang]) sum -= measureFn(hang, size, bold);
+      return sum;
+    };
+    c.big = function (line, size) { return (emph && line.indexOf(emph) >= 0) ? size * c.kscale : size; };
+    c.wrap = function (text, width, size, bold) {
+      var lines = [];
+      clauses(text).forEach(function (cl) {
+        breakLines(cl, width, function (u) { return unitW(u, size, bold); }, emph).forEach(function (l) { lines.push(l); });
+      });
+      return lines;
+    };
+    c.height = function (lines, size, lh) {
+      var h = 0;
+      lines.forEach(function (l) { h += c.big(l, size) * lh; });
+      return h;
+    };
+    c.fit = function (text, width, maxSize, minSize, maxH, lh, bold) {
+      var size = maxSize, lines;
+      for (var guard = 0; guard < 400; guard++) {
+        lines = c.wrap(text, width, size, bold);
+        var ok = c.height(lines, size, lh) <= maxH;
+        for (var i = 0; ok && i < lines.length; i++) if (c.lineW(lines[i], size, bold) > width) ok = false;
+        if (ok || size <= minSize) return { size: fmt(size), lines: lines };
+        size = Math.max(minSize, size * 0.95);
+      }
+      return { size: fmt(size), lines: lines };
+    };
+    c.draw = function (ops, line, x, y, size, lh, gray, bold) {
+      var big = c.big(line, size);
+      runs(line, emph).forEach(function (r) {
+        var s = r[1] ? size * c.kscale : size;
+        textOp(ops, r[0], x, y + (big - s) * 0.88, s, gray, bold);
+        x += measureFn(r[1], s, bold);
+      });
+      return big * lh;
+    };
+    c.fill = function (line, width, bold) {
+      return width / Math.max(1, c.lineW(line, 100, bold)) * 100;
+    };
+    return c;
+  }
+
+  function giantRow(ops, word, x, y, g, gray) {
+    charsOf(word).forEach(function (ch) { textOp(ops, ch, x, y, g, gray, true, true); x += g; });
+  }
+
+  function lineX(lineW, W, halign, m) {
+    if (halign === 'right') return W - m - lineW;
+    if (halign === 'center') return (W - lineW) / 2;
+    return m;
+  }
+  function blockY(totalH, H, vpos, m) {
+    if (vpos === 'bottom') return Math.max(m, H - m - totalH);
+    if (vpos === 'top') return m;
+    return Math.max(m, (H - totalH) / 2);
+  }
+  function drawCaption(ops, q, y, size, W, halign, m) {
+    var att = attribution(q);
+    if (!att) return 0;
+    textOp(ops, att, lineX(measure(att, size, false), W, halign, m), y, size, GRAY, false);
+    return size * 1.2;
+  }
+
+  // ===== 版式 =====
+  var LAYOUTS = {};
+
+  LAYOUTS.horizontal = function (q, W, H, measureFn, o) {
+    var ops = [], m = W * 0.1, inner = W - 2 * m;
+    var c = newCtx(measureFn, q.keyword);
+    var body = q.body, kw = q.keyword;
+    var cs = clauses(body), last = cs[cs.length - 1] || body;
+    var tail = null;
+    var kwAt = kw ? body.indexOf(kw, body.length - last.length) : -1;
+    if (kw && kwAt >= 0 && kwAt > 0 && charsOf(body.slice(kwAt)).length <= 6) tail = body.slice(kwAt);
+    else if (cs.length >= 2) tail = last;
+    var rest = tail ? body.slice(0, body.length - tail.length) : body;
+    var rc = clauses(rest);
+    var head = rc[0] || body;
+    var mid = rc.length > 1 ? rc.slice(1).join('') : null;
+
+    var ts = 0, tlines = [];
+    if (tail) {
+      var tr = c.fit(tail, inner, Math.min(W * 0.19, c.fill(tail, inner, true)), W * 0.06, H * 0.3, 1.15, true);
+      ts = tr.size; tlines = tr.lines;
+      if (charsOf(tail).length > 8) {
+        var tr2 = c.fit(tail, inner, W * 0.15, W * 0.06, H * 0.3, 1.15, true);
+        ts = tr2.size; tlines = tr2.lines;
+        if (tlines.length === 2) {
+          var even = c.lineW(tail, ts, true) / 2 * 1.12;
+          var bl = breakLines(tail, even, function (u) { return c.unitW(u, ts, true); }, kw);
+          if (bl.length === 2) tlines = bl;
+        }
+      }
+    }
+    var hcap = tail ? Math.min(W * 0.12, ts * 0.62) : W * 0.15;
+    var hr = c.fit(head, inner, Math.min(hcap, c.fill(head, inner, true)), W * 0.05, H * 0.3, 1.25, true);
+    var hs = hr.size, hlines = hr.lines;
+    var ms = 0, mlines = [];
+    if (mid) {
+      var mr = c.fit(mid, inner, Math.max(W * 0.045, hs * 0.5), W * 0.034, H * 0.2, 1.45, true);
+      ms = mr.size; mlines = mr.lines;
+    }
+    var gap = hs * 0.3;
+    var small = W * 0.024;
+    var ruleH = Math.max(2, W * 0.0025);
+    var total = c.height(hlines, hs, 1.25);
+    if (mid) total += gap * 0.3 + c.height(mlines, ms, 1.45);
+    if (tail) total += gap * 0.7 + ruleH + gap * 1.5 + c.height(tlines, ts, 1.15);
+    var hasCap = attribution(q) !== '';
+    if (hasCap) total += small * 1.5 + small * 1.2;
+
+    var y = blockY(total, H, o.vpos, m);
+    hlines.forEach(function (l) {
+      y += c.draw(ops, l, lineX(c.lineW(l, hs, true), W, o.halign, m), y, hs, 1.25, BLACK, true);
+    });
+    if (mid) {
+      y += gap * 0.3;
+      mlines.forEach(function (l) {
+        y += c.draw(ops, l, lineX(c.lineW(l, ms, true), W, o.halign, m), y, ms, 1.45, BLACK, true);
+      });
+    }
+    if (tail) {
+      y += gap * 0.7;
+      var rw = inner * 0.2;
+      rectOp(ops, lineX(rw, W, o.halign, m), y, rw, ruleH, RULE);
+      y += ruleH + gap * 1.5;
+      tlines.forEach(function (l) {
+        var x = lineX(c.lineW(l, ts, true), W, o.halign, m);
+        y += c.draw(ops, l, o.halign === 'left' ? x - ts * 0.03 : x, y, ts, 1.15, BLACK, true);
+      });
+    }
+    if (hasCap) { y += small * 1.5; drawCaption(ops, q, y, small, W, o.halign, m); }
+    return ops;
+  };
+
+  LAYOUTS.vertical = function (q, W, H, measureFn, o) {
+    var ops = [], m = W * 0.1;
+    var kw = q.keyword, kchars = charsOf(kw || ''), n = kchars.length;
+    var kscale = 1.35, colH = H * 0.68, side = 0;
+
+    if (n === 1) {
+      textOp(ops, kchars[0], W * 0.12, H * 0.4, W * 0.62, PALE, true, true);
+    } else if (n > 1) {
+      var g = Math.min(W * 0.44, H * 0.96 / n);
+      var gy = (H - n * g) / 2;
+      kchars.forEach(function (ch, i) { textOp(ops, ch, -g * 0.06, gy + i * g, g, PALE, true, true); });
+      side = g * 0.82;
+    }
+    var availW = W - 2 * m - side;
+    function count(u) { return charsOf(u).length * (u === kw ? kscale : 1); }
+    function colLen(col) {
+      var s = 0;
+      runs(col, kw).forEach(function (r) { s += count(r[0]); });
+      return s;
+    }
+
+    var size = W * 0.085, cols = [];
+    for (var guard = 0; guard < 400; guard++) {
+      var rows = Math.max(2, Math.floor(colH / (size * 1.04)));
+      cols = [];
+      clauses(q.body).forEach(function (cl) {
+        breakLines(cl, rows, count, kw).forEach(function (col) { cols.push(col); });
+      });
+      if (cols.length * size * 1.65 <= availW || size <= W * 0.035) break;
+      size *= 0.95;
+    }
+    var pitch = size * 1.65;
+    var stagger = size * 0.9;
+    if (cols.length > 1) {
+      var longest = 0;
+      cols.forEach(function (col) { longest = Math.max(longest, colLen(col) * size * 1.04); });
+      stagger = Math.max(0, Math.min(stagger, (H - m * 1.6 - longest) / (cols.length - 1)));
+    }
+    var maxh = 0;
+    cols.forEach(function (col, i) { maxh = Math.max(maxh, i * stagger + colLen(col) * size * 1.04); });
+
+    var small = W * 0.024;
+    var capH = attribution(q) ? size * 0.6 + small * 1.2 : 0;
+    var top = blockY(maxh + capH, H, o.vpos, m * 0.8);
+
+    var colsWidth = (cols.length - 1) * pitch + size;
+    var right;
+    if (o.halign === 'right') right = W - m;
+    else if (o.halign === 'left') right = m + side + colsWidth;
+    else right = (W + colsWidth) / 2;
+
+    cols.forEach(function (col, i) {
+      var x = right - size - i * pitch;
+      var y = top + i * stagger;
+      runs(col, kw).forEach(function (r) {
+        var s = r[1] ? size * kscale : size;
+        charsOf(r[0]).forEach(function (ch) {
+          textOp(ops, vertical(ch), x - (s - size) / 2, y, s, BLACK, true);
+          y += s * 1.04;
+        });
+      });
+    });
+    if (attribution(q)) drawCaption(ops, q, top + maxh + size * 0.6, small, W, o.halign, m);
+    return ops;
+  };
+
+  LAYOUTS.backdrop = function (q, W, H, measureFn, o) {
+    var ops = [], m = W * 0.1, inner = W - 2 * m;
+    var kchars = charsOf(q.keyword), n = Math.max(1, kchars.length);
+    var g = Math.min(W * 1.04 / n, W * 0.6, H * 0.38);
+    giantRow(ops, q.keyword, (W - n * g) / 2, H - g * 0.9, g, PALE);
+
+    var c = newCtx(measureFn, q.keyword);
+    var fr = c.fit(q.body, inner * 0.9, W * 0.11, W * 0.05, H * 0.42, 1.22, true);
+    var size = fr.size, lines = fr.lines;
+    var ruleH = Math.max(2, W * 0.003), small = W * 0.024;
+    var capH = attribution(q) ? W * 0.025 + small * 1.2 : 0;
+    var total = c.height(lines, size, 1.22) + size * 0.5 + ruleH + capH;
+    var y = blockY(total, H, o.vpos, m);
+    lines.forEach(function (l) {
+      y += c.draw(ops, l, lineX(c.lineW(l, size, true), W, o.halign, m), y, size, 1.22, BLACK, true);
+    });
+    y += size * 0.5;
+    rectOp(ops, lineX(W * 0.08, W, o.halign, m), y, W * 0.08, ruleH, BLACK);
+    if (attribution(q)) drawCaption(ops, q, y + W * 0.025, small, W, o.halign, m);
+    return ops;
+  };
+
+  function textBox(ops) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    ops.forEach(function (op) {
+      if (op.t !== 'text' || op.grain) return;
+      x0 = Math.min(x0, op.x); y0 = Math.min(y0, op.y);
+      x1 = Math.max(x1, op.x + measure(op.s, op.size, op.bold)); y1 = Math.max(y1, op.y + op.size);
+    });
+    return [x0, y0, x1, y1];
+  }
+  function hit(a, b) { return a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]; }
+
+  LAYOUTS.scatter = function (q, W, H, measureFn, o) {
+    var ops = [], m = W * 0.1, inner = W - 2 * m;
+    var c = newCtx(measureFn, q.keyword);
+    var fr = c.fit(q.body, inner * 0.64, W * 0.085, W * 0.045, H * 0.4, 1.32, true);
+    var size = fr.size, lines = fr.lines, lh = 1.32;
+    var small = W * 0.024;
+    var capH = attribution(q) ? size * 0.3 + small * 1.2 : 0;
+    var y = blockY(c.height(lines, size, lh) + capH, H, o.vpos, m);
+    for (var i = 1; i <= lines.length; i++) {
+      var l = lines[i - 1];
+      if (i > 1 && i % 2 === 1 && lines.length > 3) y += size * 0.4;
+      y += c.draw(ops, l, lineX(c.lineW(l, size, true), W, o.halign, m), y, size, lh, BLACK, true);
+    }
+    if (attribution(q)) {
+      y += size * 0.3;
+      drawCaption(ops, q, y, small, W, o.halign, m);
+    }
+
+    var tb = textBox(ops);
+    var gap = W * 0.03, pad = W * 0.03;
+    var blocked = [[tb[0] - gap, tb[1] - gap, tb[2] + gap, tb[3] + gap]];
+    var slots = [
+      function (ww, g) { return [pad, H - pad - g]; },
+      function (ww, g) { return [W - pad - ww, (tb[1] + tb[3] - g) / 2]; },
+      function (ww, g) { return [W - pad - ww, pad]; },
+      function (ww, g) { return [W - pad - ww, H - pad - g]; },
+      function (ww, g) { return [pad, pad]; }
+    ];
+    var used = [], placed = [];
+    q.words.forEach(function (word) {
+      var n = charsOf(word).length;
+      var gmax = Math.min(W * 0.3, (W - pad * 2) / n);
+      var g = gmax, done = false;
+      while (!done && g >= W * 0.1) {
+        for (var si = 0; si < slots.length && !done; si++) {
+          if (used[si]) continue;
+          var pos = slots[si](n * g, g);
+          var box = [pos[0], pos[1], pos[0] + n * g, pos[1] + g];
+          var ok = box[0] >= pad - 0.5 && box[1] >= pad - 0.5 &&
+                   box[2] <= W - pad + 0.5 && box[3] <= H - pad + 0.5;
+          for (var bi = 0; ok && bi < blocked.length; bi++) if (hit(box, blocked[bi])) ok = false;
+          if (ok) {
+            used[si] = true; done = true;
+            blocked.push([box[0] - gap, box[1] - gap, box[2] + gap, box[3] + gap]);
+            placed.push([word, box[0], box[1], g]);
+          }
+        }
+        g *= 0.92;
+      }
+    });
+    var out = [];
+    placed.forEach(function (p) { giantRow(out, p[0], p[1], p[2], p[3], PALE); });
+    ops.forEach(function (op) { out.push(op); });
+    return out;
+  };
+
+  function dayOfYear(d) {
+    return Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 86400000) + 1;
+  }
+  function dateLine(d) {
+    var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+    var dd = ('0' + d.getDate()).slice(-2);
+    return d.getFullYear() + '.' + mm + '.' + dd;
+  }
+
+  LAYOUTS.collage = function (q, W, H, measureFn) {
+    var ops = [], m = W * 0.065, inner = W - 2 * m, small = W * 0.022;
+    var leftW = inner * 0.6, rx = m + leftW + inner * 0.05, rightW = W - m - rx;
+    var now = new Date(), doy = dayOfYear(now), d = dateLine(now);
+
+    textOp(ops, 'NO.' + ('00' + doy).slice(-3), m, m, small, INK, false);
+    textOp(ops, d, W - m - measure(d, small, false), m, small, INK, false);
+    var y = m + small * 1.9;
+    rectOp(ops, m, y, inner, Math.max(2, W * 0.003), BLACK);
+    y += W * 0.035;
+    var top = y;
+
+    var who = q.author || q.title || 'MOON';
+    var plain = newCtx(measureFn);
+    var ws = Math.min(W * 0.085, plain.fill(who, leftW, true));
+    textOp(ops, who, m, y, ws, SMOKE, true, true);
+    y += ws * 1.12 + W * 0.03;
+
+    var c = newCtx(measureFn, q.keyword, 1.5);
+    var fr = c.fit(q.body, leftW, W * 0.07, W * 0.036, H * 0.3, 1.25, true);
+    fr.lines.forEach(function (l) { y += c.draw(ops, l, m, y, fr.size, 1.25, BLACK, true); });
+    var bottom = Math.max(y, top + H * 0.42);
+
+    rectOp(ops, rx - inner * 0.025, top, 1, bottom - top, BLACK);
+    var title = q.title || '月读', tchars = charsOf(title);
+    var ts = Math.min(W * 0.075, rightW * 0.42, (bottom - top - small * 8) / Math.max(1, tchars.length));
+    var ty = top;
+    tchars.forEach(function (ch) { textOp(ops, vertical(ch), W - m - ts, ty, ts, BLACK, true); ty += ts * 1.04; });
+    rectOp(ops, W - m - ts * 1.35, top, 1, ty - top, GRAY);
+
+    var cy = top, cw = rightW - ts * 1.6;
+    breakLines(q.body, cw, function (u) { return measure(u, small, false); }).forEach(function (l) {
+      if (cy > bottom - small * 3) return;
+      textOp(ops, l, rx, cy, small, INK, false);
+      cy += small * 1.6;
+    });
+    rectOp(ops, rx, cy + small * 0.6, small * 2.5, 1, BLACK);
+
+    y = bottom + W * 0.04;
+    rectOp(ops, m, y, inner, 1, BLACK);
+    y += W * 0.04;
+    var midTop = y;
+    if (q.keyword) {
+      var ks = Math.min(W * 0.26, H * 0.16, plain.fill(q.keyword, leftW * 0.95, true));
+      textOp(ops, q.keyword, m - ks * 0.03, y, ks, BLACK, true);
+      y += ks * 1.2;
+    }
+    var att = attribution(q);
+    if (att) { textOp(ops, att, m, y, small, GRAY, false); y += small * 1.2; }
+    y += small * 0.6;
+    rectOp(ops, m, y, small * 2.5, 1, BLACK);
+    rectOp(ops, rx - inner * 0.025, midTop, 1, Math.max(y - midTop, small * 9), BLACK);
+
+    var info = ['摘自 ' + (q.title ? '《' + q.title + '》' : '—')];
+    if (q.author) info.push(q.author);
+    info.push(charsOf(q.body).length + ' 字', d);
+    var iy = midTop;
+    info.forEach(function (line) {
+      breakLines(line, rightW, function (u) { return measure(u, small, false); }).forEach(function (l) {
+        textOp(ops, l, rx, iy, small, INK, false);
+        iy += small * 1.6;
+      });
+    });
+
+    var by = H - m - small;
+    rectOp(ops, m, by - small * 0.9, inner, 1, BLACK);
+    textOp(ops, 'MOON · 月读', m, by, small, INK, true);
+    var tail = doy + ' / 365';
+    textOp(ops, tail, W - m - measure(tail, small, false), by, small, INK, false);
+    return ops;
+  };
+
+  // ===== 计划：从文字到绘制指令 =====
+  function plan(style, q, W, H, opts) {
+    var body = strip(q.text);
+    var kw = q.keyword || keywordOf(q.text);
+    if (kw && body.indexOf(kw) < 0) kw = null;
+    var p = { body: body, title: q.title || '', author: q.author || '', keyword: kw };
+
+    if (style === 'backdrop' && !kw) style = 'horizontal';
+    if (style === 'vertical' && !/[\u4e00-\u9fff]/.test(body)) style = 'horizontal';
+    if (style === 'vertical' && W > H) style = 'horizontal';
+    if (style === 'scatter') {
+      p.words = [];
+      if (kw) p.words.push(kw);
+      topWords(body, 4).forEach(function (w) { if (p.words.length < 3 && w !== kw) p.words.push(w); });
+      if (!kw) style = 'horizontal';
+    }
+    return { style: style, ops: LAYOUTS[style](p, W, H, measure, opts) };
+  }
+
+  // ===== 颗粒 =====
+  function noise(x, y) {
+    var n = (Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 0;
+    n = Math.imul(n ^ (n >>> 13), 1274126177) >>> 0;
+    return ((n ^ (n >>> 16)) & 0xFFFF) / 0xFFFF;
+  }
+
+  function paintGrain(ctx, op) {
+    var size = op.size, bold = op.bold;
+    var tw = Math.ceil(measure(op.s, size, bold)) + 4;
+    var th = Math.ceil(size * 1.25);
+    if (tw <= 0 || th <= 0) return;
+
+    var tmp = document.createElement('canvas');
+    tmp.width = tw; tmp.height = th;
+    var tctx = tmp.getContext('2d');
+    tctx.fillStyle = '#fff';
+    tctx.fillRect(0, 0, tw, th);
+    tctx.fillStyle = '#000';
+    tctx.textBaseline = 'alphabetic';
+    tctx.font = fontFor(size, bold);
+    tctx.fillText(op.s, 0, size * 0.88);
+
+    var src = tctx.getImageData(0, 0, tw, th).data;
+    var out = tctx.createImageData(tw, th);
+    var dst = out.data;
+    var depth = 255 - op.gray;
+    for (var y = 0; y < th; y++) {
+      for (var x = 0; x < tw; x++) {
+        var si = (y * tw + x) * 4;
+        var cov = 255 - src[si];
+        if (cov <= 8) continue;
+        var coarse = noise(Math.floor(x / 5), Math.floor(y / 5));
+        var fine = noise(x, y);
+        var k = 0.78 + coarse * 0.32 + (fine - 0.5) * 0.28;
+        if (fine < 0.025 || (coarse < 0.07 && fine < 0.5)) k = 0.15;
+        var a = Math.min(255, depth * k) * cov / 255;
+        dst[si] = op.gray; dst[si + 1] = op.gray; dst[si + 2] = op.gray; dst[si + 3] = a;
+      }
+    }
+    tctx.putImageData(out, 0, 0);
+    ctx.drawImage(tmp, op.x, op.y);
+  }
+
+  function grayStyle(v) { return 'rgb(' + v + ',' + v + ',' + v + ')'; }
+
+  function paint(canvas, ops) {
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.textBaseline = 'alphabetic';
+    ops.forEach(function (op) {
+      if (op.t === 'rect') {
+        ctx.fillStyle = grayStyle(op.gray);
+        ctx.fillRect(op.x, op.y, op.w, op.h);
+      } else if (op.grain) {
+        paintGrain(ctx, op);
+      } else {
+        ctx.fillStyle = grayStyle(op.gray);
+        ctx.font = fontFor(op.size, op.bold);
+        ctx.fillText(op.s, op.x, op.y + op.size * 0.88);
+      }
+    });
+  }
+
+  // ===== 界面 =====
+  var $ = function (id) { return document.getElementById(id); };
+  var canvas = $('poster'), status = $('status');
+  var last = { style: 'horizontal', W: 0, H: 0 };
+  var ANCHORS = {
+    center: ['center', 'center'], tl: ['top', 'left'], tr: ['top', 'right'],
+    bl: ['bottom', 'left'], br: ['bottom', 'right']
+  };
+
+  // 尺寸来源：Apple 官方技术规格、三星/小米官方规格页（2026-11）
+  var SIZE_GROUPS = [
+    { label: 'iPhone', bare: true, items: [
+      ['iPhone 18 Pro Max', 1320, 2868],
+      ['iPhone 18 Pro', 1206, 2622],
+      ['iPhone 17 Pro Max', 1320, 2868],
+      ['iPhone 17 Pro', 1206, 2622],
+      ['iPhone 17', 1206, 2622],
+      ['iPhone Air', 1260, 2736],
+      ['iPhone 17e', 1170, 2532]
+    ] },
+    { label: 'Android', items: [
+      ['三星 S26 Ultra', 1440, 3120],
+      ['三星 S26+', 1440, 3120],
+      ['三星 S26', 1080, 2340],
+      ['小米 17 Ultra', 1200, 2608],
+      ['小米 17', 1220, 2656],
+      ['安卓 2K', 1440, 3200],
+      ['安卓 1080p', 1080, 2400]
+    ] },
+    { label: '电脑', items: [
+      ['桌面 1080p', 1920, 1080],
+      ['桌面 1440p', 2560, 1440],
+      ['宽屏 1440p', 3440, 1440],
+      ['4K', 3840, 2160]
+    ] }
+  ];
+
+  function ratioNum(W, H) {
+    return Math.round((H >= W ? H / W * 9 : W / H * 9) * 100) / 100;
+  }
+
+  var sizeMenu = null, sizeBtn = null;
+  var sizeChoice = { w: 1320, h: 2868, custom: false, label: 'iPhone 18 Pro Max' };
+
+  function sizeItemText(g, it) {
+    return g.bare ? it[0] : it[0] + ' (' + it[1] + '×' + it[2] + ', ' + ratioNum(it[1], it[2]) + ':9)';
+  }
+
+  function clampSize(v, dflt) {
+    return Math.max(320, Math.min(7680, +v || dflt));
+  }
+
+  function currentSize() {
+    if (sizeChoice.custom) return [clampSize($('cw').value, 1170), clampSize($('ch').value, 2532)];
+    return [sizeChoice.w, sizeChoice.h];
+  }
+
+  function updateRatio() {
+    var s = currentSize();
+    $('ratio').textContent = s[0] + ' × ' + s[1] + ' · 宽高比 ' + ratioNum(s[0], s[1]) + ' : 9';
+  }
+
+  function closeSizeMenu() {
+    sizeMenu.hidden = true;
+    sizeBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  function pickSize(choice, btn) {
+    sizeChoice = choice;
+    sizeBtn.textContent = choice.label;
+    Array.prototype.forEach.call(sizeMenu.querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+    });
+    $('customRow').hidden = !choice.custom;
+    closeSizeMenu();
+    generate();
+  }
+
+  (function buildSizes() {
+    sizeMenu = $('sizeMenu');
+    sizeBtn = $('sizeBtn');
+    SIZE_GROUPS.forEach(function (g) {
+      var head = document.createElement('div');
+      head.className = 'group';
+      head.textContent = g.label;
+      sizeMenu.appendChild(head);
+      g.items.forEach(function (it) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = sizeItemText(g, it);
+        b.addEventListener('click', function () {
+          pickSize({ w: it[1], h: it[2], custom: false, label: it[0] }, b);
+        });
+        sizeMenu.appendChild(b);
+      });
+    });
+    var custom = document.createElement('button');
+    custom.type = 'button';
+    custom.textContent = '自定义宽高';
+    custom.addEventListener('click', function () {
+      pickSize({ custom: true, label: '自定义宽高' }, custom);
+    });
+    sizeMenu.appendChild(custom);
+    var first = sizeMenu.querySelector('button');
+    if (first) first.setAttribute('aria-selected', 'true');
+    sizeBtn.addEventListener('click', function () {
+      if (sizeMenu.hidden) {
+        sizeMenu.hidden = false;
+        sizeBtn.setAttribute('aria-expanded', 'true');
+        var sel = sizeMenu.querySelector('[aria-selected="true"]');
+        if (sel) sel.scrollIntoView({ block: 'nearest' });
+      } else {
+        closeSizeMenu();
+      }
+    });
+    document.addEventListener('click', function (e) {
+      if (!sizeMenu.hidden && !sizeMenu.contains(e.target) && e.target !== sizeBtn) closeSizeMenu();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !sizeMenu.hidden) { closeSizeMenu(); sizeBtn.focus(); }
+    });
+  })();
+
+  function generate() {
+    var text = $('text').value;
+    if (!text.trim()) { status.textContent = '请输入一段文字'; return; }
+    document.body.classList.add('busy');
+    status.textContent = '生成中…';
+    setTimeout(function () {
+      var style = $('style').value;
+      if (style === 'random') style = STYLES[Math.floor(Math.random() * STYLES.length)];
+      var anchor = ANCHORS[$('pos').value];
+      var opts = { vpos: anchor[0], halign: anchor[1] };
+      var size = currentSize(), W = size[0], H = size[1];
+      updateRatio();
+      var q = {
+        text: text,
+        title: $('title').value.trim(),
+        author: $('author').value.trim(),
+        keyword: $('keyword').value.trim()
+      };
+      canvas.width = W; canvas.height = H;
+      var res = plan(style, q, W, H, opts);
+      paint(canvas, res.ops);
+      last = { style: res.style, W: W, H: H };
+      $('pos').disabled = res.style === 'collage';
+      status.textContent = res.style + ' · ' + W + ' × ' + H + ' · 点击「下载 PNG」保存';
+      document.body.classList.remove('busy');
+    }, 20);
+  }
+
+  var timer = null;
+  function later() {
+    clearTimeout(timer);
+    timer = setTimeout(generate, 350);
+  }
+
+  ['text', 'title', 'author', 'keyword', 'cw', 'ch'].forEach(function (id) {
+    $(id).addEventListener('input', later);
+  });
+  ['style', 'pos'].forEach(function (id) {
+    $(id).addEventListener('change', generate);
+  });
+  $('gen').addEventListener('click', generate);
+  $('shuffle').addEventListener('click', function () {
+    var others = STYLES.filter(function (s) { return s !== last.style; });
+    $('style').value = others[Math.floor(Math.random() * others.length)];
+    generate();
+  });
+  $('save').addEventListener('click', function () {
+    canvas.toBlob(function (blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'poster-' + last.style + '-' + last.W + 'x' + last.H + '.png';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    }, 'image/png');
+  });
+
+  generate();
+})();
+</script>
+</body>
+</html>
