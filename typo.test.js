@@ -33,7 +33,8 @@ global.document = {
 const html = fs.readFileSync(`${__dirname}/index.html`, 'utf8');
 const code = html.slice(html.indexOf('(function () {'), html.indexOf('// ===== 界面 ====='));
 eval(code + `
-globalThis.poster = { segment, keywordOf, breakLines, dayOfYear, yearDays, attribution, plan, NO_START, newCtx, setLineChars };
+globalThis.poster = { segment, keywordOf, breakLines, dayOfYear, yearDays, attribution, plan, NO_START, newCtx, setLineChars,
+  dxDay, dxLunarLines, dxFallback };
 })()`);
 const P = globalThis.poster;
 
@@ -100,4 +101,83 @@ test('plan flags text that runs past the canvas', () => {
   assert.strictEqual(short.overflow, false);
   const long = P.plan('horizontal', { text: QUOTE.repeat(14), title: '', author: '' }, 1320, 2868, opts);
   assert.strictEqual(long.overflow, true);
+});
+
+test('danxiangli maps the lunar payload to the three lines', () => {
+  assert.deepStrictEqual(P.dxLunarLines({
+    lunarMonthName: '十月', lunarDayName: '十五', zodiac: '马',
+    yearInGanZhi: '丙午', monthInGanZhi: '己亥', dayInGanZhi: '辛丑', festival: ['春节']
+  }), { date: '十月十五', ganzhi: '丙午马年 · 己亥月 · 辛丑日', term: '今日春节' });
+  assert.strictEqual(P.dxLunarLines({
+    lunarMonthName: '十月', lunarDayName: '十五', festival: []
+  }).term, undefined);
+  assert.strictEqual(P.dxLunarLines(null), null);
+  assert.strictEqual(P.dxLunarLines({ lunarMonthName: '', lunarDayName: '' }), null);
+});
+
+test('danxiangli calendar fields follow the date', () => {
+  const c = P.dxDay(new Date(2026, 9, 15));
+  assert.strictEqual(c.month_en, 'OCTOBER');
+  assert.strictEqual(c.week_en, 'THURSDAY');
+  assert.strictEqual(c.week_zh, '星期四');
+  assert.strictEqual(c.yday, 288);
+  assert.strictEqual(c.total, 365);
+  assert.strictEqual(P.dxDay(new Date(2028, 11, 31)).total, 366);
+});
+
+test('danxiangli picks the same fallback sentence for the same day', () => {
+  const a = P.dxDay(new Date(2026, 9, 15));
+  const b = P.dxDay(new Date(2026, 9, 15));
+  assert.strictEqual(P.dxFallback(a).text, P.dxFallback(b).text);
+  assert.ok(P.dxFallback(a).text.length > 0);
+});
+
+const DX_LUNAR = { date: '十月十五', ganzhi: '丙午马年 · 己亥月 · 辛丑日', term: '今日春节' };
+const dxMeasure = (s, px) => [...s].reduce((w, ch) => w + (ch.codePointAt(0) > 127 ? px : px * 0.55), 0);
+
+function dxCheck(W, H, q, lunar) {
+  const res = P.plan('danxiangli', q, W, H, { date: new Date(2026, 9, 15), lunar });
+  assert.strictEqual(res.style, 'danxiangli');
+  assert.ok(res.ops.length > 10);
+  let foot = 0;
+  for (const op of res.ops) if (op.t === 'rect' && op.h <= 2 && op.y > foot) foot = op.y;
+  for (const op of res.ops) {
+    if (op.t === 'text') {
+      const right = op.x + dxMeasure(op.s, op.size);
+      assert.ok(op.x >= 0 && right <= W + op.size, `${W}x${H} overflow x: ${op.s}`);
+      assert.ok(op.y >= 0 && op.y + op.size <= H + 1, `${W}x${H} overflow y: ${op.s}`);
+      if (op.s !== 'MOON · 月读' && !op.s.startsWith('NO.')) {
+        assert.ok(op.y + op.size <= foot, `${W}x${H} overlaps footer: ${op.s}`);
+      }
+    } else {
+      assert.ok(op.x >= 0 && op.x + op.w <= W && op.y + op.h <= H, `${W}x${H} rect overflow`);
+    }
+  }
+  return res.ops;
+}
+
+test('danxiangli fits portrait, landscape, and thumbnails with or without lunar', () => {
+  const quotes = [
+    { text: '我们每个人，都对所有人负有罪责，而我比所有人更有罪。', title: '卡拉马佐夫兄弟', author: '陀思妥耶夫斯基' },
+    { text: '很长的一句划线，'.repeat(10), title: '', author: '' },
+    { text: "To go wrong in one's own way is better than to go right in someone else's.", title: 'Crime', author: 'F. D.' }
+  ];
+  for (const [W, H] of [[600, 800], [800, 600], [176, 381]]) {
+    for (const q of quotes) {
+      for (const lunar of [null, DX_LUNAR]) dxCheck(W, H, q, lunar);
+    }
+  }
+});
+
+test('danxiangli uses the input text and falls back only when it is empty', () => {
+  const ops = dxCheck(600, 800, { text: '自定义句子。', title: '书', author: '人' }, null);
+  const texts = ops.filter((o) => o.t === 'text').map((o) => o.s);
+  assert.ok(texts.includes('自定义句子。'));
+  assert.ok(texts.includes('—— 《书》 人'));
+
+  const empty = dxCheck(600, 800, { text: '', title: '', author: '' }, null);
+  const joined = empty.filter((o) => o.t === 'text').map((o) => o.s).join('');
+  const fb = P.dxFallback(P.dxDay(new Date(2026, 9, 15)));
+  assert.ok(joined.includes(fb.text), `fallback sentence missing: ${fb.text}`);
+  assert.ok(empty.every((o) => o.t !== 'text' || o.s !== DX_LUNAR.date), 'lunar must be absent when not loaded');
 });

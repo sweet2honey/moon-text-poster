@@ -11,8 +11,9 @@
 - `book.koplugin/features/lockscreen/typo.lua` — 五套版式的排版与颗粒绘制
 - `book.koplugin/features/lockscreen/typo_text.lua` — 切词、按词断行、避头尾、分句、竖排标点、关键词挑选
 - `book.koplugin/features/lockscreen/typo_words.txt` — 词表（见下方第三方）
+- `book.koplugin/features/lockscreen/danxiangli.lua` — 单向历版式（公历日、农历、按日期固定的每日一句）
 
-修改说明：2026-11-17 移植到浏览器，保留排版算法本身，改为 Canvas 2D 绘制；替换了字体测量、颗粒着色与界面部分，并新增尺寸选择、版式缩略图、每行字数与强制换行等浏览器端功能。修改后的实现见 `index.html`、`typo_words.js`、`typo.test.js`。
+修改说明：2026-11-17 移植到浏览器，保留排版算法本身，改为 Canvas 2D 绘制；替换了字体测量、颗粒着色与界面部分，并新增尺寸选择、版式缩略图、每行字数与强制换行等浏览器端功能。单向历的农历数据在勾选后取自公开接口 `api.530.news`（该接口没有节气，故第三行只显示节日），取不到时只画公历。修改后的实现见 `index.html`、`typo_words.js`、`typo.test.js`。
 
 ## 许可证
 

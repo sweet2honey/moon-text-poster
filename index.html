@@ -93,12 +93,14 @@
   body.preview-full { overflow:hidden; }
   body.preview-full main { position:fixed; inset:0; height:100dvh; padding:0; z-index:60; cursor:zoom-out; }
   body.preview-full canvas { max-height:100dvh; max-width:100vw; box-shadow:none; }
+  .check { display:flex; align-items:center; gap:6px; margin-top:14px; cursor:pointer; letter-spacing:.05em; }
+  .check input { width:auto; margin:0; }
 </style>
 </head>
 <body>
 <aside id="panel">
   <h1>锁屏文字海报</h1>
-  <p class="sub">纯灰阶 · 颗粒字 · 五套版心</p>
+  <p class="sub">纯灰阶 · 颗粒字 · 六套版心</p>
 
   <div class="label-row">
     <label for="text">文字（可用【】标出关键词）</label>
@@ -145,6 +147,9 @@
 
   <label for="lineChars">每行字数（0 = 自动）</label>
   <input id="lineChars" type="number" min="0" max="100" value="0">
+  <label class="check" for="lunarOn">
+    <input type="checkbox" id="lunarOn"> 农历（单向历联网查询）
+  </label>
 
   <div class="btns">
     <button class="primary" id="save">下载 PNG</button>
@@ -153,7 +158,8 @@
 
   <div id="note">
     灰阶六档（0/34/102/136/200/112）与颗粒算法移植自 book.koplugin/features/lockscreen/typo.lua。<br>
-    拼贴版式为整页网格，忽略文字位置；竖排版式在横屏画布上自动改用横排。<br>
+    拼贴与单向历为整页排版，忽略文字位置；竖排版式在横屏画布上自动改用横排。<br>
+    单向历日期固定为今天；勾选农历后向 api.530.news 查询农历与节日，失败则只画公历。<br>
     导出按所选像素输出 PNG，不缩放。
   </div>
 </aside>
@@ -171,7 +177,7 @@
   var BLACK = 0x00, INK = 0x22, GRAY = 0x66, RULE = 0x88, PALE = 0xC8, SMOKE = 0x70;
   var FONT = '"Songti SC","Noto Serif CJK SC","Source Han Serif SC","Noto Serif CJK TC",' +
              '"Noto Serif CJK HK","Noto Serif CJK JP","AR PL UMing CN",serif';
-  var STYLES = ['horizontal', 'vertical', 'backdrop', 'scatter', 'collage'];
+  var STYLES = ['horizontal', 'vertical', 'backdrop', 'scatter', 'collage', 'danxiangli'];
 
   var charsOf = function (s) { return Array.from(s || ''); };
   function fontFor(px, bold) { return (bold ? 'bold ' : 'normal ') + px + 'px ' + FONT; }
@@ -792,12 +798,179 @@
     return ops;
   };
 
+  // ===== 单向历（移植 danxiangli.lua）=====
+  var D_INK = 0x33, D_GRAY = 0x77;
+  var MONTHS_EN = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY',
+    'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  var WEEK_EN = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+  var WEEK_ZH = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  var DX_FALLBACK = [
+    { text: '我们每个人，都对所有人负有罪责。', title: '月读', author: '' },
+    { text: '人一旦习惯了痛苦，痛苦也就成了他的家。', title: '月读', author: '' },
+    { text: '清醒是一种病，一种真正的、彻头彻尾的病。', title: '月读', author: '' },
+    { text: '我怕的不是死，而是配不上我所受的苦难。', title: '月读', author: '' }
+  ];
+
+  function dxDay(d) {
+    var y = d.getFullYear();
+    return {
+      year: y, month: d.getMonth() + 1, day: d.getDate(),
+      wday: d.getDay(), yday: dayOfYear(d), total: yearDays(y),
+      month_en: MONTHS_EN[d.getMonth()], week_en: WEEK_EN[d.getDay()], week_zh: WEEK_ZH[d.getDay()]
+    };
+  }
+
+  // 530 农历接口 → 上游三行：农历月日 / 干支生肖 / 节日（节气接口没有，不画）
+  function dxLunarLines(d) {
+    if (!d) return null;
+    var date = (d.lunarMonthName || '') + (d.lunarDayName || '');
+    if (!date) return null;
+    var out = { date: date };
+    if (d.yearInGanZhi && d.monthInGanZhi && d.dayInGanZhi) {
+      out.ganzhi = d.yearInGanZhi + (d.zodiac ? d.zodiac + '年' : '年') + ' · ' +
+        d.monthInGanZhi + '月 · ' + d.dayInGanZhi + '日';
+    }
+    if (d.festival && d.festival.length) out.term = '今日' + d.festival[0];
+    return out;
+  }
+
+  function dxFallback(c) { return DX_FALLBACK[(c.year * 400 + c.yday) % DX_FALLBACK.length]; }
+
+  function dxSpaced(s, size) {
+    var w = 0;
+    charsOf(s).forEach(function (ch) { w += measure(ch, size, false) + size * 0.35; });
+    return w - size * 0.35;
+  }
+
+  function dxSpacedText(ops, s, x, y, size, gray) {
+    charsOf(s).forEach(function (ch) {
+      textOp(ops, ch, x, y, size, gray, false);
+      x += measure(ch, size, false) + size * 0.35;
+    });
+  }
+
+  function dxCentered(ops, s, cx, y, size, gray, bold) {
+    textOp(ops, s, cx - measure(s, size, bold) / 2, y, size, gray, bold);
+  }
+
+  function dxFitQuote(text, width, maxSize, minSize, maxH, lh) {
+    var size = maxSize;
+    for (var guard = 0; guard < 400; guard++) {
+      var lines = breakLines(text, width, function (u) { return measure(u, size, false); }, null, 0);
+      if (lines.length * size * lh <= maxH || size <= minSize) {
+        while (lines.length * size * lh > maxH && lines.length > 1) lines.pop();
+        return { size: size, lines: lines };
+      }
+      size = Math.max(minSize, size * 0.94);
+    }
+    return { size: size, lines: [] };
+  }
+
+  function dxDateBlock(ops, c, x, bw, y, big) {
+    var cx = x + bw / 2;
+    var en = c.month_en + '  ' + c.week_en;
+    var small = Math.min(big * 0.11, bw * 100 / dxSpaced(en, 100));
+    var day = String(c.day);
+    var ds = Math.min(big, bw * 92 / Math.max(0.01, measure(day, 100, true)));
+    dxCentered(ops, day, cx, y, ds, BLACK, true);
+    y += ds * 1.02;
+    dxSpacedText(ops, en, cx - dxSpaced(en, small) / 2, y, small, D_INK);
+    y += small * 2;
+    dxCentered(ops, c.week_zh, cx, y, small * 1.5, BLACK, true);
+    y += small * 2.6;
+    rectOp(ops, cx - bw * 0.18, y, bw * 0.36, 1, D_GRAY);
+    y += small * 1.6;
+    if (c.lunar) {
+      var ls = small * 2.1;
+      dxCentered(ops, c.lunar.date, cx, y, ls, BLACK, true);
+      y += ls * 1.45;
+      if (c.lunar.ganzhi) {
+        dxCentered(ops, c.lunar.ganzhi, cx, y, small * 1.25, D_INK, false);
+        y += small * 1.25 * 1.6;
+      }
+      if (c.lunar.term) {
+        dxCentered(ops, c.lunar.term, cx, y, small * 1.25, D_INK, false);
+        y += small * 1.25 * 1.4;
+      }
+    }
+    return y;
+  }
+
+  function dxQuoteBlock(ops, q, x, width, top, bottom, base) {
+    var att = attribution(q);
+    var as = base * 0.62;
+    var avail = bottom - top - (att ? as * 2.4 : 0);
+    var f = dxFitQuote(strip(q.text), width, base, base * 0.6, avail, 1.7);
+    var block = f.lines.length * f.size * 1.7 + (att ? as * 2.4 : 0);
+    var y = top + Math.max(0, (bottom - top - block) / 2);
+    f.lines.forEach(function (line) {
+      textOp(ops, line, x, y, f.size, BLACK, false);
+      y += f.size * 1.7;
+    });
+    if (att) {
+      y += as * 0.8;
+      textOp(ops, att, Math.max(x, x + width - measure(att, as, false)), y, as, D_GRAY, false);
+    }
+  }
+
+  LAYOUTS.danxiangli = function (q, W, H, measureFn, c) {
+    var ops = [], m = Math.min(W, H) * 0.08, small = Math.min(W, H) * 0.024;
+
+    // 刊头：月读 / YYYY.MM / 横线
+    textOp(ops, '月读', m, m, small, BLACK, true);
+    var right = c.year + '.' + ('0' + c.month).slice(-2);
+    textOp(ops, right, W - m - measure(right, small, false), m, small, D_INK, false);
+    var top = m + small * 1.8;
+    rectOp(ops, m, top, W - m * 2, Math.max(2, small * 0.12), BLACK);
+
+    // 页脚：细线 / MOON · 月读 / 日序
+    var fy = H - m - small;
+    rectOp(ops, m, fy - small * 0.9, W - m * 2, 1, D_GRAY);
+    textOp(ops, 'MOON · 月读', m, fy, small, D_GRAY, false);
+    var tail = 'NO.' + ('00' + c.yday).slice(-3) + ' / ' + c.total;
+    textOp(ops, tail, W - m - measure(tail, small, false), fy, small, D_GRAY, false);
+
+    var bottom = H - m - small * 2.2;
+    if (W > H) {
+      var lw = (W - m * 2) * 0.42;
+      var big = Math.min(lw * 0.8, (bottom - top - small * 2) / 2.5);
+      dxDateBlock(ops, c, m, lw, top + Math.max(small, (bottom - top - big * 2.45) / 2), big);
+      var rx = m + lw + (W - m * 2) * 0.06;
+      rectOp(ops, m + lw + (W - m * 2) * 0.03, top + small * 2, 1, bottom - top - small * 4, D_GRAY);
+      dxQuoteBlock(ops, q, rx, W - m - rx, top + small * 2, bottom - small, Math.min(W, H) * 0.042);
+    } else {
+      var inner = W - m * 2;
+      var pbig = Math.min(inner * 0.62, (bottom - top) * 0.3);
+      var y = dxDateBlock(ops, c, m, inner, top + small * 1.5, pbig);
+      rectOp(ops, m, y + small * 0.6, inner, 1, BLACK);
+      rectOp(ops, m, y + small * 0.6 + 4, inner, 1, BLACK);
+      dxQuoteBlock(ops, q, m + inner * 0.04, inner * 0.92, y + small * 2.4, bottom - small, W * 0.044);
+    }
+    return ops;
+  };
+  function maxBottom(ops) {
+    var bottom = 0;
+    ops.forEach(function (op) {
+      if (op.t === 'text' && op.grain) return; // giant decorative words bleed off the edge on purpose
+      bottom = Math.max(bottom, op.y + (op.t === 'text' ? op.size : op.h));
+    });
+    return bottom;
+  }
+
   // ===== 计划：从文字到绘制指令 =====
   function plan(style, q, W, H, opts) {
     var body = strip(q.text);
     var kw = q.keyword || keywordOf(q.text);
     if (kw && body.indexOf(kw) < 0) kw = null;
     var p = { body: body, title: q.title || '', author: q.author || '', keyword: kw };
+
+    if (style === 'danxiangli') {
+      var c = dxDay(opts.date || new Date());
+      c.lunar = opts.lunar || null;
+      var dq = body.trim() ? { text: body, title: p.title, author: p.author } : dxFallback(c);
+      var dops = LAYOUTS.danxiangli(dq, W, H, measure, c);
+      return { style: style, ops: dops, overflow: maxBottom(dops) > H };
+    }
 
     if (style === 'backdrop' && !kw) style = 'horizontal';
     if (style === 'vertical' && !/[\u4e00-\u9fff]/.test(body)) style = 'horizontal';
@@ -809,12 +982,7 @@
       if (!kw) style = 'horizontal';
     }
     var ops = LAYOUTS[style](p, W, H, measure, opts);
-    var bottom = 0;
-    ops.forEach(function (op) {
-      if (op.t === 'text' && op.grain) return; // giant decorative words bleed off the edge on purpose
-      bottom = Math.max(bottom, op.y + (op.t === 'text' ? op.size : op.h));
-    });
-    return { style: style, ops: ops, overflow: bottom > H };
+    return { style: style, ops: ops, overflow: maxBottom(ops) > H };
   }
 
   // ===== 颗粒 =====
@@ -1016,7 +1184,7 @@
 
   // ===== 版式卷轴 =====
   var STYLE_LABELS = [['random', '随机'], ['horizontal', '横排标题'], ['vertical', '竖排'],
-    ['backdrop', '巨字铺底'], ['scatter', '散落关键词'], ['collage', '拼贴海报']];
+    ['backdrop', '巨字铺底'], ['scatter', '散落关键词'], ['collage', '拼贴海报'], ['danxiangli', '单向历']];
   var styleChoice = 'horizontal';
   var THUMB = { w: 176, h: 381 };
   var THUMB_SAMPLE = '人生代代无穷已，江月年年望相似。';
@@ -1058,6 +1226,36 @@
     generate();
   }
 
+  // ===== 单向历的农历（勾选后联网）=====
+  var lunarCache = { key: '', data: null, failed: false, busy: false };
+
+  function lunarKey(d) {
+    var mm = ('0' + (d.getMonth() + 1)).slice(-2), dd = ('0' + d.getDate()).slice(-2);
+    return d.getFullYear() + '-' + mm + '-' + dd;
+  }
+
+  function lunarFor(date) {
+    if (!$('lunarOn').checked) return null;
+    return lunarCache.key === lunarKey(date) ? lunarCache.data : null;
+  }
+
+  function maybeFetchLunar(style) {
+    if (style !== 'danxiangli' || !$('lunarOn').checked) return;
+    var key = lunarKey(new Date());
+    if (lunarCache.key === key || lunarCache.busy) return;
+    lunarCache = { key: key, data: null, failed: false, busy: true };
+    fetch('https://api.530.news/api/lunar?date=' + key)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || j.code !== 200 || !j.data) throw new Error('bad payload');
+        lunarCache = { key: key, data: dxLunarLines(j.data), failed: false, busy: false };
+      })
+      .catch(function () {
+        lunarCache = { key: key, data: null, failed: true, busy: false };
+      })
+      .then(function () { if (styleChoice === 'danxiangli') generate(); });
+  }
+
   function renderThumbs(text) {
     var q = {
       text: text.trim() ? text : THUMB_SAMPLE,
@@ -1065,9 +1263,10 @@
       author: $('author').value.trim(),
       keyword: $('keyword').value.trim()
     };
+    var date = new Date(), lunar = lunarFor(date);
     Array.prototype.forEach.call(document.querySelectorAll('.style-card canvas'), function (cv) {
       var s = cv.parentNode.getAttribute('data-style');
-      paint(cv, plan(s, q, THUMB.w, THUMB.h, { vpos: 'center', halign: 'center' }).ops);
+      paint(cv, plan(s, q, THUMB.w, THUMB.h, { vpos: 'center', halign: 'center', date: date, lunar: lunar }).ops);
     });
   }
 
@@ -1107,17 +1306,19 @@
 
   function generate() {
     var text = $('text').value;
+    var style = styleChoice;
+    if (style === 'random') style = STYLES[Math.floor(Math.random() * STYLES.length)];
     setLineChars($('lineChars').value);
     renderThumbs(text);
     syncClears();
-    if (!text.trim()) { status.textContent = '请输入一段文字'; return; }
+    if (!text.trim() && style !== 'danxiangli') { status.textContent = '请输入一段文字'; return; }
+    maybeFetchLunar(style);
     document.body.classList.add('busy');
     status.textContent = '生成中…';
     setTimeout(function () {
-      var style = styleChoice;
-      if (style === 'random') style = STYLES[Math.floor(Math.random() * STYLES.length)];
       var anchor = ANCHORS[$('pos').value];
-      var opts = { vpos: anchor[0], halign: anchor[1] };
+      var now = new Date();
+      var opts = { vpos: anchor[0], halign: anchor[1], date: now, lunar: lunarFor(now) };
       var size = currentSize(), W = size[0], H = size[1];
       updateRatio();
       var q = {
@@ -1131,8 +1332,9 @@
       var res = plan(style, q, W, H, opts);
       paint(canvas, res.ops);
       last = { style: res.style, W: W, H: H };
-      $('pos').disabled = res.style === 'collage';
-      status.textContent = res.style + ' · ' + W + ' × ' + H +
+      $('pos').disabled = res.style === 'collage' || res.style === 'danxiangli';
+      var lunarNote = res.style === 'danxiangli' && $('lunarOn').checked && lunarCache.failed ? ' · 农历获取失败' : '';
+      status.textContent = res.style + ' · ' + W + ' × ' + H + lunarNote +
         (res.overflow ? ' · 文字过长，超出部分已截断' : '') + ' · 点击「下载 PNG」保存';
       document.body.classList.remove('busy');
     }, 20);
@@ -1148,6 +1350,7 @@
     $(id).addEventListener('input', function () { syncClears(); later(); });
   });
   $('pos').addEventListener('change', generate);
+  $('lunarOn').addEventListener('change', generate);
 
   $('save').addEventListener('click', function () {
     canvas.toBlob(function (blob) {
