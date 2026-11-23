@@ -738,11 +738,13 @@
     y += W * 0.035;
     var top = y;
 
-    var who = q.author || q.title || 'MOON';
+    var who = q.author || q.title;
     var plain = newCtx(measureFn);
-    var ws = Math.min(W * 0.085, plain.fill(who, leftW, true));
-    textOp(ops, who, m, y, ws, SMOKE, true, true);
-    y += ws * 1.12 + W * 0.03;
+    if (who) {
+      var ws = Math.min(W * 0.085, plain.fill(who, leftW, true));
+      textOp(ops, who, m, y, ws, SMOKE, true, true);
+      y += ws * 1.12 + W * 0.03;
+    }
 
     var c = newCtx(measureFn, q.keyword, 1.5);
     var fr = c.fit(q.body, leftW, W * 0.07, W * 0.036, H * 0.3, 1.25, true);
@@ -750,11 +752,13 @@
     var bottom = Math.max(y, top + H * 0.42);
 
     rectOp(ops, rx - inner * 0.025, top, 1, bottom - top, BLACK);
-    var title = q.title || '月读', tchars = charsOf(title);
-    var ts = Math.min(W * 0.075, rightW * 0.42, (bottom - top - small * 8) / Math.max(1, tchars.length));
+    var title = q.title || '', tchars = charsOf(title);
+    var ts = tchars.length ? Math.min(W * 0.075, rightW * 0.42, (bottom - top - small * 8) / tchars.length) : 0;
     var ty = top;
-    tchars.forEach(function (ch) { textOp(ops, vertical(ch), W - m - ts, ty, ts, BLACK, true); ty += ts * 1.04; });
-    rectOp(ops, W - m - ts * 1.35, top, 1, ty - top, GRAY);
+    if (ts) {
+      tchars.forEach(function (ch) { textOp(ops, vertical(ch), W - m - ts, ty, ts, BLACK, true); ty += ts * 1.04; });
+      rectOp(ops, W - m - ts * 1.35, top, 1, ty - top, GRAY);
+    }
 
     var cy = top, cw = rightW - ts * 1.6;
     breakLines(q.body, cw, function (u) { return measure(u, small, false); }).forEach(function (l) {
@@ -779,7 +783,8 @@
     rectOp(ops, m, y, small * 2.5, 1, BLACK);
     rectOp(ops, rx - inner * 0.025, midTop, 1, Math.max(y - midTop, small * 9), BLACK);
 
-    var info = ['摘自 ' + (q.title ? '《' + q.title + '》' : '—')];
+    var info = [];
+    if (q.title) info.push('摘自 《' + q.title + '》');
     if (q.author) info.push(q.author);
     info.push(charsOf(q.body).length + ' 字', d);
     var iy = midTop;
@@ -792,7 +797,6 @@
 
     var by = H - m - small;
     rectOp(ops, m, by - small * 0.9, inner, 1, BLACK);
-    textOp(ops, 'MOON · 月读', m, by, small, INK, true);
     var tail = doy + ' / ' + yearDays(now.getFullYear());
     textOp(ops, tail, W - m - measure(tail, small, false), by, small, INK, false);
     return ops;
@@ -805,10 +809,10 @@
   var WEEK_EN = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
   var WEEK_ZH = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
   var DX_FALLBACK = [
-    { text: '我们每个人，都对所有人负有罪责。', title: '月读', author: '' },
-    { text: '人一旦习惯了痛苦，痛苦也就成了他的家。', title: '月读', author: '' },
-    { text: '清醒是一种病，一种真正的、彻头彻尾的病。', title: '月读', author: '' },
-    { text: '我怕的不是死，而是配不上我所受的苦难。', title: '月读', author: '' }
+    { text: '我们每个人，都对所有人负有罪责。', title: '', author: '' },
+    { text: '人一旦习惯了痛苦，痛苦也就成了他的家。', title: '', author: '' },
+    { text: '清醒是一种病，一种真正的、彻头彻尾的病。', title: '', author: '' },
+    { text: '我怕的不是死，而是配不上我所受的苦难。', title: '', author: '' }
   ];
 
   function dxDay(d) {
@@ -916,17 +920,15 @@
   LAYOUTS.danxiangli = function (q, W, H, measureFn, c) {
     var ops = [], m = Math.min(W, H) * 0.08, small = Math.min(W, H) * 0.024;
 
-    // 刊头：月读 / YYYY.MM / 横线
-    textOp(ops, '月读', m, m, small, BLACK, true);
+    // 刊头：YYYY.MM / 横线
     var right = c.year + '.' + ('0' + c.month).slice(-2);
     textOp(ops, right, W - m - measure(right, small, false), m, small, D_INK, false);
     var top = m + small * 1.8;
     rectOp(ops, m, top, W - m * 2, Math.max(2, small * 0.12), BLACK);
 
-    // 页脚：细线 / MOON · 月读 / 日序
+    // 页脚：细线 / 日序
     var fy = H - m - small;
     rectOp(ops, m, fy - small * 0.9, W - m * 2, 1, D_GRAY);
-    textOp(ops, 'MOON · 月读', m, fy, small, D_GRAY, false);
     var tail = 'NO.' + ('00' + c.yday).slice(-3) + ' / ' + c.total;
     textOp(ops, tail, W - m - measure(tail, small, false), fy, small, D_GRAY, false);
 

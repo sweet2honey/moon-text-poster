@@ -146,7 +146,7 @@ function dxCheck(W, H, q, lunar) {
       const right = op.x + dxMeasure(op.s, op.size);
       assert.ok(op.x >= 0 && right <= W + op.size, `${W}x${H} overflow x: ${op.s}`);
       assert.ok(op.y >= 0 && op.y + op.size <= H + 1, `${W}x${H} overflow y: ${op.s}`);
-      if (op.s !== 'MOON · 月读' && !op.s.startsWith('NO.')) {
+      if (!op.s.startsWith('NO.')) {
         assert.ok(op.y + op.size <= foot, `${W}x${H} overlaps footer: ${op.s}`);
       }
     } else {
@@ -180,4 +180,8 @@ test('danxiangli uses the input text and falls back only when it is empty', () =
   const fb = P.dxFallback(P.dxDay(new Date(2026, 9, 15)));
   assert.ok(joined.includes(fb.text), `fallback sentence missing: ${fb.text}`);
   assert.ok(empty.every((o) => o.t !== 'text' || o.s !== DX_LUNAR.date), 'lunar must be absent when not loaded');
+  assert.ok(empty.every((o) => o.t !== 'text' || !/MOON|月读/.test(o.s)), 'branding must be gone');
+  const collage = P.plan('collage', { text: '没有书名。', title: '', author: '', keyword: '' }, 600, 800,
+    { vpos: 'center', halign: 'center' });
+  assert.ok(collage.ops.every((o) => o.t !== 'text' || !/MOON|月读/.test(o.s)), 'collage branding must be gone');
 });
