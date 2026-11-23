@@ -8,92 +8,84 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>锁屏文字海报 · Moon</title>
+<link rel="stylesheet" href="https://unpkg.com/mdui@2.1.5/mdui.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
-  :root { --fg:#1c1c1c; --muted:#6b6b6b; --border:#d6d3cc; --surface:#fff; --bg:#e9e7e1; }
   * { box-sizing:border-box; }
-  body { margin:0; display:flex; min-height:100vh; background:var(--bg); color:var(--fg);
-         font:14px/1.6 "Songti SC","Noto Serif CJK SC",serif; }
-  #panel { width:clamp(320px, 36vw, 560px); flex:none; padding:20px; border-right:1px solid var(--border);
-           background:var(--surface); overflow-y:auto; }
-  #panel h1 { font-size:16px; margin:0 0 4px; letter-spacing:.1em; }
-  #panel .sub { color:var(--muted); font-size:12px; margin:0 0 18px; letter-spacing:.05em; }
-  label { display:block; font-size:12px; color:var(--muted); margin:14px 0 4px; letter-spacing:.08em; }
-  textarea, input[type=text], input[type=number], select {
-    width:100%; padding:7px 9px; border:1px solid var(--border); border-radius:2px;
-    background:#fff; color:var(--fg); font:13px/1.6 inherit; }
-  textarea { resize:vertical; min-height:86px; }
-  .row { display:flex; gap:8px; }
-  .row > div { flex:1; min-width:0; }
+  body { margin:0; display:flex; min-height:100vh;
+         background:rgb(var(--mdui-color-surface-container)); color:rgb(var(--mdui-color-on-surface));
+         font:14px/1.6 Roboto,"Noto Sans SC","PingFang SC",system-ui,sans-serif; }
+  #panel { width:clamp(320px, 36vw, 560px); flex:none; padding:24px 20px; overflow-y:auto;
+           background:rgb(var(--mdui-color-surface));
+           border-right:1px solid rgb(var(--mdui-color-outline-variant)); }
+  #panel h1 { font-size:22px; line-height:28px; font-weight:400; margin:0 0 4px; }
+  #panel .sub { color:rgb(var(--mdui-color-on-surface-variant)); font-size:12px; margin:0 0 20px; }
+  mdui-text-field, mdui-select { display:block; width:100%; }
+  mdui-text-field:not(:defined), mdui-select:not(:defined), mdui-checkbox:not(:defined),
+  mdui-button:not(:defined), mdui-button-icon:not(:defined), mdui-menu-item:not(:defined) { visibility:hidden; }
+  .field-block { margin-top:16px; }
+  .section-label { font-size:12px; color:rgb(var(--mdui-color-on-surface-variant)); margin:0 0 8px; }
+  .row { display:flex; gap:12px; margin-top:16px; }
+  .row > * { flex:1; min-width:0; }
   .row[hidden] { display:none; }
-  .hint { font-size:11px; color:var(--muted); margin-top:4px; letter-spacing:.05em; }
-  .btns { display:flex; gap:8px; margin-top:20px; flex-wrap:wrap; }
-  button { flex:1; min-width:76px; padding:9px 10px; border:1px solid var(--fg); border-radius:2px;
-           background:#fff; color:var(--fg); font:13px/1 inherit; letter-spacing:.1em; cursor:pointer; }
-  button:hover { background:#f2f0eb; }
-  button.primary { background:var(--fg); color:#fff; }
-  button.primary:hover { background:#000; }
-  #status { margin-top:12px; font-size:12px; color:var(--muted); min-height:1.6em; }
-  #note { margin-top:18px; padding-top:12px; border-top:1px solid var(--border);
-          font-size:11px; line-height:1.8; color:var(--muted); }
+  .hint { font-size:12px; color:rgb(var(--mdui-color-on-surface-variant)); margin-top:8px; }
+  .btns { margin-top:24px; }
+  #save { width:100%; }
+  #status { margin-top:12px; font-size:12px; color:rgb(var(--mdui-color-on-surface-variant));
+            min-height:1.6em; }
+  #note { margin-top:24px; padding-top:16px; border-top:1px solid rgb(var(--mdui-color-outline-variant));
+          font-size:12px; line-height:1.8; color:rgb(var(--mdui-color-on-surface-variant)); }
   main { flex:1; display:flex; align-items:center; justify-content:center; padding:24px; min-width:0; }
-  canvas { background:#fff; box-shadow:0 2px 24px rgba(0,0,0,.14); max-width:100%;
+  canvas { background:#fff; box-shadow:var(--mdui-elevation-level2); max-width:100%;
            max-height:calc(100vh - 48px); display:block; }
   .preview-btn { display:flex; align-items:center; justify-content:center; flex:none; width:100%; height:100%;
                 min-width:0; max-height:100%; padding:0; border:0; background:none;
-                line-height:0; letter-spacing:0; cursor:zoom-in; }
+                line-height:0; letter-spacing:0; cursor:zoom-in; border-radius:var(--mdui-shape-corner-medium); }
   .preview-btn:hover { background:none; }
   body.busy main { cursor:progress; }
   body.busy canvas { opacity:.55; }
 
-  .label-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:14px 0 4px; }
-  .label-row label { margin:0; }
-  .field { position:relative; }
-  .field input { padding-right:26px; }
-  .clear-btn { position:absolute; right:2px; top:50%; transform:translateY(-50%); width:24px; height:24px;
-              flex:none; min-width:0; padding:0; border:0; background:none; color:var(--muted);
-              font-size:16px; line-height:1; letter-spacing:0; cursor:pointer; }
-  .label-row .clear-btn { position:static; transform:none; }
-  .clear-btn:hover { background:none; color:var(--fg); }
-  .clear-btn:disabled { opacity:.3; cursor:default; }
-  .style-wrap { display:flex; align-items:center; gap:4px; }
+  .style-wrap { display:flex; align-items:center; gap:8px; }
+  .style-arrow { flex:none; }
   .style-strip { flex:1; min-width:0; display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory;
-                 scrollbar-width:none; padding:2px 0; }
+                scrollbar-width:none; padding:2px 0; }
   .style-strip::-webkit-scrollbar { display:none; }
-  .style-card { flex:none; width:72px; min-width:0; padding:0; border:1px solid var(--border); border-radius:2px;
-                background:#fff; scroll-snap-align:start; }
-  .style-card:hover { background:#fff; }
-  .style-card canvas { display:block; width:72px; height:auto; box-shadow:none; }
-  .style-card .thumb { width:72px; height:156px; display:flex; align-items:center; justify-content:center;
-                       font-size:24px; color:var(--muted); }
-  .style-card .name { font-size:11px; line-height:1.6; text-align:center; color:var(--muted); letter-spacing:0; }
-  .style-card[aria-pressed="true"] { border-color:var(--fg); box-shadow:0 0 0 1px var(--fg); }
-  .style-card[aria-pressed="true"] .name { color:var(--fg); }
-  .style-arrow { flex:none; width:24px; min-width:0; height:40px; padding:0; border:1px solid var(--border);
-                 background:#fff; color:var(--fg); font-size:14px; line-height:1; letter-spacing:0; }
-  .style-arrow:disabled { opacity:.3; cursor:default; }
+  .style-card { flex:none; width:76px; min-width:0; padding:0; scroll-snap-align:start; font:inherit;
+              border:1px solid rgb(var(--mdui-color-outline-variant));
+              border-radius:var(--mdui-shape-corner-medium);
+              background:rgb(var(--mdui-color-surface-container-lowest)); color:inherit; cursor:pointer; }
+  .style-card:hover { background:rgb(var(--mdui-color-surface-container-low)); }
+  .style-card canvas { display:block; width:76px; height:auto; box-shadow:none; }
+  .style-card .thumb { width:76px; height:165px; display:flex; align-items:center; justify-content:center;
+                      font-size:24px; color:rgb(var(--mdui-color-on-surface-variant)); }
+  .style-card .name { font-size:11px; line-height:1.6; text-align:center; padding-bottom:4px;
+                     color:rgb(var(--mdui-color-on-surface-variant)); letter-spacing:0; }
+  .style-card[aria-pressed="true"] { border-color:rgb(var(--mdui-color-primary));
+                                    box-shadow:0 0 0 1px rgb(var(--mdui-color-primary)); }
+  .style-card[aria-pressed="true"] .name { color:rgb(var(--mdui-color-primary)); }
   @media (hover:none) { .style-arrow { display:none; } }
 
   @media (max-width:900px) {
     body { flex-direction:column; }
     main { order:-1; position:sticky; top:0; z-index:5; flex:none; height:42svh; padding:8px;
-           align-items:stretch; background:var(--bg); box-shadow:0 1px 0 var(--border); }
+           align-items:stretch; background:rgb(var(--mdui-color-surface-container));
+           box-shadow:0 1px 0 rgb(var(--mdui-color-outline-variant)); }
     .preview-btn { height:auto; }
     canvas { max-height:100%; cursor:zoom-in; }
     .style-card, .style-card canvas, .style-card .thumb { width:88px; }
     .style-card .thumb { height:191px; }
-    #panel { width:auto; flex:none; border-right:0; border-top:1px solid var(--border); }
+    #panel { width:auto; flex:none; border-right:0;
+             border-top:1px solid rgb(var(--mdui-color-outline-variant)); }
   }
-  #previewDialog { max-width:100vw; max-height:100dvh; padding:0; border:0; background:transparent; }
-  #previewDialog::backdrop { background:var(--bg); }
+  #previewDialog { max-width:100vw; max-height:100dvh; padding:0; border:0;
+                  background:rgb(var(--mdui-color-surface-container-lowest));
+                  border-radius:var(--mdui-shape-corner-large); }
+  #previewDialog::backdrop { background:rgb(var(--mdui-color-surface-container)); }
   #previewDialog canvas { max-height:100dvh; max-width:100vw; box-shadow:none; }
-  .preview-close { position:absolute; top:8px; right:8px; width:36px; height:36px; min-width:0; padding:0;
-                   border:1px solid var(--border); border-radius:50%; background:#fff; font-size:20px;
-                   line-height:1; letter-spacing:0; }
+  .preview-close { position:absolute; top:8px; right:8px; z-index:1; }
   .visually-hidden:where(:not(:focus-within, :active)) { position:absolute !important; clip-path:inset(50%) !important;
     overflow:hidden !important; width:1px !important; height:1px !important; margin:-1px !important;
     padding:0 !important; border:0 !important; white-space:nowrap !important; }
-  .check { display:flex; align-items:center; gap:6px; margin-top:14px; cursor:pointer; letter-spacing:.05em; }
-  .check input { width:auto; margin:0; }
   [hidden] { display:none !important; }
 </style>
 </head>
@@ -102,55 +94,62 @@
   <h1>锁屏文字海报</h1>
   <p class="sub">纯灰阶 · 颗粒字 · 六套版心</p>
 
-  <div class="label-row">
-    <label for="text">文字（可用【】标出关键词）</label>
-    <button type="button" class="clear-btn" data-clear="text" aria-label="清空文字" title="清空">×</button>
-  </div>
-  <textarea id="text">人生代代无穷已，江月年年望相似。</textarea>
+  <mdui-text-field id="text" variant="outlined" rows="3" clearable
+                   label="文字（可用【】标出关键词）"
+                   value="人生代代无穷已，江月年年望相似。"></mdui-text-field>
 
   <div class="row">
-    <div><label for="title">书名</label>
-      <div class="field"><input id="title" type="text" value="春江花月夜"><button type="button" class="clear-btn" data-clear="title" aria-label="清空书名" title="清空">×</button></div></div>
-    <div><label for="author">作者</label>
-      <div class="field"><input id="author" type="text" value="张若虚"><button type="button" class="clear-btn" data-clear="author" aria-label="清空作者" title="清空">×</button></div></div>
+    <mdui-text-field id="title" variant="outlined" clearable label="书名" value="春江花月夜"></mdui-text-field>
+    <mdui-text-field id="author" variant="outlined" clearable label="作者" value="张若虚"></mdui-text-field>
   </div>
 
-  <label for="keyword">关键词（留空 = 自动）</label>
-  <div class="field"><input id="keyword" type="text" value=""><button type="button" class="clear-btn" data-clear="keyword" aria-label="清空关键词" title="清空">×</button></div>
-
-  <label>版式</label>
-  <div class="style-wrap">
-    <button type="button" class="style-arrow" id="stylePrev" aria-label="上一版式">‹</button>
-    <div class="style-strip" id="styleStrip" role="group" aria-label="版式"></div>
-    <button type="button" class="style-arrow" id="styleNext" aria-label="下一版式">›</button>
-  </div>
-  <label class="check" id="lunarRow" for="lunarOn" hidden>
-    <input type="checkbox" id="lunarOn"> 农历（单向历联网查询）
-  </label>
-
-  <label for="size">壁纸大小</label>
-  <select id="size"></select>
-  <div class="hint" id="ratio"></div>
-  <div class="row" id="customRow" hidden>
-    <div><label for="cw">宽</label><input id="cw" type="number" min="320" max="7680" value="1170"></div>
-    <div><label for="ch">高</label><input id="ch" type="number" min="320" max="7680" value="2532"></div>
+  <div class="field-block">
+    <mdui-text-field id="keyword" variant="outlined" clearable label="关键词（留空 = 自动）"></mdui-text-field>
   </div>
 
-  <label for="pos">文字位置</label>
-  <select id="pos">
-    <option value="center" selected>居中</option>
-    <option value="tl">左上</option>
-    <option value="tr">右上</option>
-    <option value="bl">左下</option>
-    <option value="br">右下</option>
-  </select>
+  <div class="field-block">
+    <p class="section-label">版式</p>
+    <div class="style-wrap">
+      <mdui-button-icon class="style-arrow" id="stylePrev" aria-label="上一版式" variant="outlined">
+        <mdui-icon><svg viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></mdui-icon>
+      </mdui-button-icon>
+      <div class="style-strip" id="styleStrip" role="group" aria-label="版式"></div>
+      <mdui-button-icon class="style-arrow" id="styleNext" aria-label="下一版式" variant="outlined">
+        <mdui-icon><svg viewBox="0 0 24 24"><path d="M8.59 16.59 10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg></mdui-icon>
+      </mdui-button-icon>
+    </div>
+    <div id="lunarRow" hidden><mdui-checkbox id="lunarOn">农历（单向历联网查询）</mdui-checkbox></div>
+  </div>
 
-  <label for="lineChars">每行字数（0 = 自动）</label>
-  <input id="lineChars" type="number" min="0" max="100" value="0">
+  <div class="field-block">
+    <mdui-select id="size" variant="outlined" label="壁纸大小" value="0"></mdui-select>
+    <div class="hint" id="ratio"></div>
+    <div class="row" id="customRow" hidden>
+      <mdui-text-field id="cw" variant="outlined" type="number" label="宽" value="1170"></mdui-text-field>
+      <mdui-text-field id="ch" variant="outlined" type="number" label="高" value="2532"></mdui-text-field>
+    </div>
+  </div>
 
+  <div class="field-block">
+    <mdui-select id="pos" variant="outlined" label="文字位置" value="center">
+      <mdui-menu-item value="center">居中</mdui-menu-item>
+      <mdui-menu-item value="tl">左上</mdui-menu-item>
+      <mdui-menu-item value="tr">右上</mdui-menu-item>
+      <mdui-menu-item value="bl">左下</mdui-menu-item>
+      <mdui-menu-item value="br">右下</mdui-menu-item>
+    </mdui-select>
+  </div>
+
+  <div class="field-block">
+    <mdui-text-field id="lineChars" variant="outlined" type="number" label="每行字数（0 = 自动）"
+                     value="0"></mdui-text-field>
+  </div>
 
   <div class="btns">
-    <button class="primary" id="save">下载 PNG</button>
+    <mdui-button id="save" variant="filled" full-width>
+      下载 PNG
+      <mdui-icon slot="icon"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></mdui-icon>
+    </mdui-button>
   </div>
   <div id="status" role="status"></div>
 
@@ -171,13 +170,19 @@
 </main>
 
 <dialog id="previewDialog" aria-label="海报预览" closedby="any">
-  <button type="button" class="preview-close" id="previewClose" aria-label="关闭预览" autofocus>×</button>
+  <mdui-button-icon class="preview-close" id="previewClose" aria-label="关闭预览" variant="filled">
+    <mdui-icon><svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></mdui-icon>
+  </mdui-button-icon>
 </dialog>
 
+<script src="https://unpkg.com/mdui@2.1.5/mdui.global.js"></script>
 <script src="typo_words.js"></script>
+
 <script>
 (function () {
   'use strict';
+  if (window.mdui) mdui.setColorScheme('#6285BC');
+
 
   // ===== 常量：灰阶与字体 =====
   var BLACK = 0x00, INK = 0x22, GRAY = 0x66, RULE = 0x88, PALE = 0xC8, SMOKE = 0x70;
@@ -1075,6 +1080,33 @@
     bl: ['bottom', 'left'], br: ['bottom', 'right']
   };
 
+  // MDUI 文本框内部的 input / 清空按钮没有可访问名称，补上再交给读屏
+  function labelFields() {
+    Array.prototype.forEach.call(document.querySelectorAll('mdui-text-field'), function (field) {
+      var root = field.shadowRoot;
+      if (!root) return;
+      var input = root.querySelector('input, textarea');
+      if (input && !input.getAttribute('aria-label')) input.setAttribute('aria-label', field.label || '');
+      var clear = root.querySelector('mdui-button-icon');
+      var btn = clear && clear.shadowRoot && clear.shadowRoot.querySelector('button');
+      if (btn && !btn.getAttribute('aria-label')) {
+        btn.setAttribute('aria-label', '清空' + (field.label ? '：' + field.label : ''));
+      }
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('mdui-select'), function (field) {
+      var trigger = field.shadowRoot && field.shadowRoot.querySelector('mdui-text-field');
+      var input = trigger && trigger.shadowRoot && trigger.shadowRoot.querySelector('input');
+      if (input && !input.getAttribute('aria-label')) input.setAttribute('aria-label', field.label || '');
+    });
+  }
+  Promise.all([customElements.whenDefined('mdui-text-field'), customElements.whenDefined('mdui-select')])
+    .then(function () {
+      Array.prototype.forEach.call(document.querySelectorAll('mdui-text-field, mdui-select'), function (field) {
+        if (field.updateComplete) field.updateComplete.then(labelFields);
+      });
+      setTimeout(labelFields, 300);
+    });
+
   // 尺寸来源：Apple 官方技术规格、三星/小米官方规格页（2026-11）
   var SIZE_GROUPS = [
     { label: 'iPhone', bare: true, items: [
@@ -1128,30 +1160,26 @@
   }
 
   (function buildSizes() {
-    var sel = $('size');
+    var sel = $('size'), items = [];
     SIZE_GROUPS.forEach(function (g) {
-      var group = document.createElement('optgroup');
-      group.label = g.label;
-      g.items.forEach(function (it, i) {
-        var opt = document.createElement('option');
-        opt.value = g.label + ':' + i;
-        opt.textContent = sizeItemText(g, it);
-        group.appendChild(opt);
+      g.items.forEach(function (it) {
+        var item = document.createElement('mdui-menu-item');
+        item.setAttribute('value', String(items.length));
+        item.textContent = sizeItemText(g, it);
+        sel.appendChild(item);
+        items.push({ w: it[1], h: it[2] });
       });
-      sel.appendChild(group);
     });
-    var custom = document.createElement('option');
-    custom.value = 'custom';
+    var custom = document.createElement('mdui-menu-item');
+    custom.setAttribute('value', 'custom');
     custom.textContent = '自定义宽高';
     sel.appendChild(custom);
-    sel.value = 'iPhone:0';
+    sel.value = '0';
     sel.addEventListener('change', function () {
-      var v = sel.value;
-      if (v === 'custom') sizeChoice = { custom: true };
+      if (sel.value === 'custom') sizeChoice = { custom: true };
       else {
-        var parts = v.split(':'), g = SIZE_GROUPS.filter(function (x) { return x.label === parts[0]; })[0];
-        var it = g.items[+parts[1]];
-        sizeChoice = { w: it[1], h: it[2], custom: false };
+        var it = items[+sel.value];
+        sizeChoice = { w: it.w, h: it.h, custom: false };
       }
       $('customRow').hidden = !sizeChoice.custom;
       generate();
@@ -1269,22 +1297,7 @@
     sync();
   })();
 
-  // ===== 输入框清空 =====
-  function syncClears() {
-    Array.prototype.forEach.call(document.querySelectorAll('.clear-btn'), function (b) {
-      b.disabled = $(b.getAttribute('data-clear')).value === '';
-    });
-  }
-  Array.prototype.forEach.call(document.querySelectorAll('.clear-btn'), function (b) {
-    b.addEventListener('click', function () {
-      var el = $(b.getAttribute('data-clear'));
-      el.value = '';
-      el.focus();
-      syncClears();
-      later();
-    });
-  });
-  syncClears();
+
 
   function generate() {
     var text = $('text').value;
@@ -1293,7 +1306,8 @@
     $('lunarRow').hidden = style !== 'danxiangli';
     setLineChars($('lineChars').value);
     renderThumbs(text);
-    syncClears();
+    labelFields();
+
     if (!text.trim() && style !== 'danxiangli') { status.textContent = '请输入一段文字'; return; }
     maybeFetchLunar(style);
     document.body.classList.add('busy');
@@ -1336,7 +1350,7 @@
   }
 
   ['text', 'title', 'author', 'keyword', 'cw', 'ch', 'lineChars'].forEach(function (id) {
-    $(id).addEventListener('input', function () { syncClears(); later(); });
+    $(id).addEventListener('input', later);
   });
   $('pos').addEventListener('change', generate);
   $('lunarOn').addEventListener('change', generate);
@@ -1348,14 +1362,15 @@
       a.download = 'poster-' + last.style + '-' + last.W + 'x' + last.H + '.png';
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      if (window.mdui) mdui.snackbar({ message: 'PNG 已开始下载' });
     }, 'image/png');
   });
 
   var previewBtn = $('previewBtn'), previewDialog = $('previewDialog');
   previewBtn.addEventListener('click', function () {
     previewDialog.insertBefore(canvas, $('previewClose'));
-    previewBtn.setAttribute('aria-expanded', 'true');
     previewDialog.showModal();
+    $('previewClose').focus();
   });
   $('previewClose').addEventListener('click', function () { previewDialog.close(); });
   previewDialog.addEventListener('close', function () {

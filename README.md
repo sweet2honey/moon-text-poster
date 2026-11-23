@@ -4,6 +4,8 @@
 
 在浏览器里打开 `index.html` 即可使用；文字规则测试用 `node --test typo.test.js`。
 
+界面组件来自 [mdui](https://www.mdui.org/)（通过 unpkg CDN 引入），主色取自 `#6285BC`。组件脚本、样式、图标字体需要联网加载。
+
 ## 算法来源与修改
 
 本项目把 [AnkioTomas/moon](https://github.com/AnkioTomas/moon)（GPL-3.0）中的以下文件移植为 JavaScript / Canvas：
@@ -26,6 +28,16 @@ Copyright (C) 2026 Henry
 `typo_words.js` 内的词表来自 jieba 的 `dict.txt`（截取 2–4 字常用词并压缩编码），以 MIT 许可证分发：
 
 Copyright (c) 2013 Sun Junyi
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+`index.html` 通过 CDN 使用 mdui v2.1.5 与 Material Icons 字体，以 MIT 许可证分发：
+
+Copyright (c) 2016-present zdhxiong@gmail.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
