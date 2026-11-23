@@ -95,6 +95,7 @@
   body.preview-full canvas { max-height:100dvh; max-width:100vw; box-shadow:none; }
   .check { display:flex; align-items:center; gap:6px; margin-top:14px; cursor:pointer; letter-spacing:.05em; }
   .check input { width:auto; margin:0; }
+  [hidden] { display:none !important; }
 </style>
 </head>
 <body>
@@ -124,6 +125,9 @@
     <div class="style-strip" id="styleStrip" role="group" aria-label="版式"></div>
     <button type="button" class="style-arrow" id="styleNext" aria-label="下一版式">›</button>
   </div>
+  <label class="check" id="lunarRow" for="lunarOn" hidden>
+    <input type="checkbox" id="lunarOn"> 农历（单向历联网查询）
+  </label>
 
   <label>壁纸大小</label>
   <div class="picker">
@@ -147,9 +151,7 @@
 
   <label for="lineChars">每行字数（0 = 自动）</label>
   <input id="lineChars" type="number" min="0" max="100" value="0">
-  <label class="check" for="lunarOn">
-    <input type="checkbox" id="lunarOn"> 农历（单向历联网查询）
-  </label>
+
 
   <div class="btns">
     <button class="primary" id="save">下载 PNG</button>
@@ -1310,6 +1312,7 @@
     var text = $('text').value;
     var style = styleChoice;
     if (style === 'random') style = STYLES[Math.floor(Math.random() * STYLES.length)];
+    $('lunarRow').hidden = style !== 'danxiangli';
     setLineChars($('lineChars').value);
     renderThumbs(text);
     syncClears();
