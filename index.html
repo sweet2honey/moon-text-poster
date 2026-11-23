@@ -9,11 +9,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>锁屏文字海报 · Moon</title>
 <style>
-  :root { --fg:#1c1c1c; --muted:#777; --border:#d6d3cc; --surface:#fff; --bg:#e9e7e1; }
+  :root { --fg:#1c1c1c; --muted:#6b6b6b; --border:#d6d3cc; --surface:#fff; --bg:#e9e7e1; }
   * { box-sizing:border-box; }
   body { margin:0; display:flex; min-height:100vh; background:var(--bg); color:var(--fg);
          font:14px/1.6 "Songti SC","Noto Serif CJK SC",serif; }
-  #panel { width:560px; flex:none; padding:20px; border-right:1px solid var(--border);
+  #panel { width:clamp(320px, 36vw, 560px); flex:none; padding:20px; border-right:1px solid var(--border);
            background:var(--surface); overflow-y:auto; }
   #panel h1 { font-size:16px; margin:0 0 4px; letter-spacing:.1em; }
   #panel .sub { color:var(--muted); font-size:12px; margin:0 0 18px; letter-spacing:.05em; }
@@ -26,18 +26,6 @@
   .row > div { flex:1; min-width:0; }
   .row[hidden] { display:none; }
   .hint { font-size:11px; color:var(--muted); margin-top:4px; letter-spacing:.05em; }
-  .picker { position:relative; }
-  .pick-btn { display:block; width:100%; text-align:left; padding:7px 30px 7px 9px; border:1px solid var(--border);
-              border-radius:2px; background:#fff; font:13px/1.6 inherit; letter-spacing:0; color:var(--fg); }
-  .pick-btn::after { content:''; position:absolute; right:11px; top:50%; margin-top:-2px;
-                     border:5px solid transparent; border-top-color:var(--fg); }
-  .pick-menu { position:absolute; z-index:20; left:0; right:0; margin-top:4px; max-height:320px; overflow:auto;
-               background:#fff; border:1px solid var(--border); box-shadow:0 8px 20px rgba(0,0,0,.12); }
-  .pick-menu .group { padding:5px 9px; font-size:11px; color:var(--muted); background:#faf9f6; letter-spacing:.08em; }
-  .pick-menu button { display:block; width:100%; text-align:left; padding:7px 9px; border:0; border-radius:0;
-                      background:#fff; font:13px/1.5 inherit; letter-spacing:0; color:var(--fg); }
-  .pick-menu button:hover { background:#f2f0eb; }
-  .pick-menu button[aria-selected="true"] { background:#eeebe4; }
   .btns { display:flex; gap:8px; margin-top:20px; flex-wrap:wrap; }
   button { flex:1; min-width:76px; padding:9px 10px; border:1px solid var(--fg); border-radius:2px;
            background:#fff; color:var(--fg); font:13px/1 inherit; letter-spacing:.1em; cursor:pointer; }
@@ -50,6 +38,10 @@
   main { flex:1; display:flex; align-items:center; justify-content:center; padding:24px; min-width:0; }
   canvas { background:#fff; box-shadow:0 2px 24px rgba(0,0,0,.14); max-width:100%;
            max-height:calc(100vh - 48px); display:block; }
+  .preview-btn { display:flex; align-items:center; justify-content:center; flex:none; width:100%; height:100%;
+                min-width:0; max-height:100%; padding:0; border:0; background:none;
+                line-height:0; letter-spacing:0; cursor:zoom-in; }
+  .preview-btn:hover { background:none; }
   body.busy main { cursor:progress; }
   body.busy canvas { opacity:.55; }
 
@@ -57,9 +49,9 @@
   .label-row label { margin:0; }
   .field { position:relative; }
   .field input { padding-right:26px; }
-  .clear-btn { position:absolute; right:5px; top:50%; transform:translateY(-50%); width:18px; height:18px;
-               flex:none; min-width:0; padding:0; border:0; background:none; color:var(--muted);
-               font-size:15px; line-height:1; letter-spacing:0; cursor:pointer; }
+  .clear-btn { position:absolute; right:2px; top:50%; transform:translateY(-50%); width:24px; height:24px;
+              flex:none; min-width:0; padding:0; border:0; background:none; color:var(--muted);
+              font-size:16px; line-height:1; letter-spacing:0; cursor:pointer; }
   .label-row .clear-btn { position:static; transform:none; }
   .clear-btn:hover { background:none; color:var(--fg); }
   .clear-btn:disabled { opacity:.3; cursor:default; }
@@ -76,23 +68,30 @@
   .style-card .name { font-size:11px; line-height:1.6; text-align:center; color:var(--muted); letter-spacing:0; }
   .style-card[aria-pressed="true"] { border-color:var(--fg); box-shadow:0 0 0 1px var(--fg); }
   .style-card[aria-pressed="true"] .name { color:var(--fg); }
-  .style-arrow { flex:none; width:20px; min-width:0; height:40px; padding:0; border:1px solid var(--border);
+  .style-arrow { flex:none; width:24px; min-width:0; height:40px; padding:0; border:1px solid var(--border);
                  background:#fff; color:var(--fg); font-size:14px; line-height:1; letter-spacing:0; }
   .style-arrow:disabled { opacity:.3; cursor:default; }
   @media (hover:none) { .style-arrow { display:none; } }
 
-  @media (max-width:720px) {
+  @media (max-width:900px) {
     body { flex-direction:column; }
     main { order:-1; position:sticky; top:0; z-index:5; flex:none; height:42svh; padding:8px;
-           background:var(--bg); box-shadow:0 1px 0 var(--border); }
+           align-items:stretch; background:var(--bg); box-shadow:0 1px 0 var(--border); }
+    .preview-btn { height:auto; }
     canvas { max-height:100%; cursor:zoom-in; }
     .style-card, .style-card canvas, .style-card .thumb { width:88px; }
     .style-card .thumb { height:191px; }
     #panel { width:auto; flex:none; border-right:0; border-top:1px solid var(--border); }
   }
-  body.preview-full { overflow:hidden; }
-  body.preview-full main { position:fixed; inset:0; height:100dvh; padding:0; z-index:60; cursor:zoom-out; }
-  body.preview-full canvas { max-height:100dvh; max-width:100vw; box-shadow:none; }
+  #previewDialog { max-width:100vw; max-height:100dvh; padding:0; border:0; background:transparent; }
+  #previewDialog::backdrop { background:var(--bg); }
+  #previewDialog canvas { max-height:100dvh; max-width:100vw; box-shadow:none; }
+  .preview-close { position:absolute; top:8px; right:8px; width:36px; height:36px; min-width:0; padding:0;
+                   border:1px solid var(--border); border-radius:50%; background:#fff; font-size:20px;
+                   line-height:1; letter-spacing:0; }
+  .visually-hidden:where(:not(:focus-within, :active)) { position:absolute !important; clip-path:inset(50%) !important;
+    overflow:hidden !important; width:1px !important; height:1px !important; margin:-1px !important;
+    padding:0 !important; border:0 !important; white-space:nowrap !important; }
   .check { display:flex; align-items:center; gap:6px; margin-top:14px; cursor:pointer; letter-spacing:.05em; }
   .check input { width:auto; margin:0; }
   [hidden] { display:none !important; }
@@ -129,11 +128,8 @@
     <input type="checkbox" id="lunarOn"> 农历（单向历联网查询）
   </label>
 
-  <label>壁纸大小</label>
-  <div class="picker">
-    <button type="button" class="pick-btn" id="sizeBtn" aria-expanded="false">iPhone 18 Pro Max</button>
-    <div class="pick-menu" id="sizeMenu" hidden></div>
-  </div>
+  <label for="size">壁纸大小</label>
+  <select id="size"></select>
   <div class="hint" id="ratio"></div>
   <div class="row" id="customRow" hidden>
     <div><label for="cw">宽</label><input id="cw" type="number" min="320" max="7680" value="1170"></div>
@@ -156,7 +152,7 @@
   <div class="btns">
     <button class="primary" id="save">下载 PNG</button>
   </div>
-  <div id="status"></div>
+  <div id="status" role="status"></div>
 
   <div id="note">
     灰阶六档（0/34/102/136/200/112）与颗粒算法移植自 book.koplugin/features/lockscreen/typo.lua。<br>
@@ -167,8 +163,16 @@
 </aside>
 
 <main>
-  <canvas id="poster" role="img" aria-label="海报预览" tabindex="0" title="点击放大预览"></canvas>
+  <button type="button" class="preview-btn" id="previewBtn" aria-expanded="false"
+          aria-controls="previewDialog" aria-label="放大预览海报" aria-describedby="posterAlt">
+    <canvas id="poster" aria-hidden="true"></canvas>
+  </button>
+  <p id="posterAlt" class="visually-hidden"></p>
 </main>
+
+<dialog id="previewDialog" aria-label="海报预览" closedby="any">
+  <button type="button" class="preview-close" id="previewClose" aria-label="关闭预览" autofocus>×</button>
+</dialog>
 
 <script src="typo_words.js"></script>
 <script>
@@ -1103,8 +1107,7 @@
     return Math.round((H >= W ? H / W * 9 : W / H * 9) * 100) / 100;
   }
 
-  var sizeMenu = null, sizeBtn = null;
-  var sizeChoice = { w: 1320, h: 2868, custom: false, label: 'iPhone 18 Pro Max' };
+  var sizeChoice = { w: 1320, h: 2868, custom: false };
 
   function sizeItemText(g, it) {
     return g.bare ? it[0] : it[0] + ' (' + it[1] + '×' + it[2] + ', ' + ratioNum(it[1], it[2]) + ':9)';
@@ -1124,65 +1127,34 @@
     $('ratio').textContent = s[0] + ' × ' + s[1] + ' · 宽高比 ' + ratioNum(s[0], s[1]) + ' : 9';
   }
 
-  function closeSizeMenu() {
-    sizeMenu.hidden = true;
-    sizeBtn.setAttribute('aria-expanded', 'false');
-  }
-
-  function pickSize(choice, btn) {
-    sizeChoice = choice;
-    sizeBtn.textContent = choice.label;
-    Array.prototype.forEach.call(sizeMenu.querySelectorAll('button'), function (b) {
-      b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
-    });
-    $('customRow').hidden = !choice.custom;
-    closeSizeMenu();
-    generate();
-  }
-
   (function buildSizes() {
-    sizeMenu = $('sizeMenu');
-    sizeBtn = $('sizeBtn');
+    var sel = $('size');
     SIZE_GROUPS.forEach(function (g) {
-      var head = document.createElement('div');
-      head.className = 'group';
-      head.textContent = g.label;
-      sizeMenu.appendChild(head);
-      g.items.forEach(function (it) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.textContent = sizeItemText(g, it);
-        b.addEventListener('click', function () {
-          pickSize({ w: it[1], h: it[2], custom: false, label: it[0] }, b);
-        });
-        sizeMenu.appendChild(b);
+      var group = document.createElement('optgroup');
+      group.label = g.label;
+      g.items.forEach(function (it, i) {
+        var opt = document.createElement('option');
+        opt.value = g.label + ':' + i;
+        opt.textContent = sizeItemText(g, it);
+        group.appendChild(opt);
       });
+      sel.appendChild(group);
     });
-    var custom = document.createElement('button');
-    custom.type = 'button';
+    var custom = document.createElement('option');
+    custom.value = 'custom';
     custom.textContent = '自定义宽高';
-    custom.addEventListener('click', function () {
-      pickSize({ custom: true, label: '自定义宽高' }, custom);
-    });
-    sizeMenu.appendChild(custom);
-    var first = sizeMenu.querySelector('button');
-    if (first) first.setAttribute('aria-selected', 'true');
-    sizeBtn.addEventListener('click', function () {
-      if (sizeMenu.hidden) {
-        sizeMenu.hidden = false;
-        sizeBtn.setAttribute('aria-expanded', 'true');
-        var sel = sizeMenu.querySelector('[aria-selected="true"]');
-        if (sel) sel.scrollIntoView({ block: 'nearest' });
-      } else {
-        closeSizeMenu();
+    sel.appendChild(custom);
+    sel.value = 'iPhone:0';
+    sel.addEventListener('change', function () {
+      var v = sel.value;
+      if (v === 'custom') sizeChoice = { custom: true };
+      else {
+        var parts = v.split(':'), g = SIZE_GROUPS.filter(function (x) { return x.label === parts[0]; })[0];
+        var it = g.items[+parts[1]];
+        sizeChoice = { w: it[1], h: it[2], custom: false };
       }
-    });
-    document.addEventListener('click', function (e) {
-      if (!sizeMenu.hidden && !sizeMenu.contains(e.target) && e.target !== sizeBtn) closeSizeMenu();
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !sizeMenu.hidden) { closeSizeMenu(); sizeBtn.focus(); }
-      else if (e.key === 'Escape') document.body.classList.remove('preview-full');
+      $('customRow').hidden = !sizeChoice.custom;
+      generate();
     });
   })();
 
@@ -1192,6 +1164,10 @@
   var styleChoice = 'horizontal';
   var THUMB = { w: 176, h: 381 };
   var THUMB_SAMPLE = '人生代代无穷已，江月年年望相似。';
+
+  function scrollBehavior() {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  }
 
   (function buildStyles() {
     var strip = $('styleStrip');
@@ -1205,10 +1181,12 @@
         var glyph = document.createElement('div');
         glyph.className = 'thumb';
         glyph.textContent = '↻';
+        glyph.setAttribute('aria-hidden', 'true');
         card.appendChild(glyph);
       } else {
         var cv = document.createElement('canvas');
         cv.width = THUMB.w; cv.height = THUMB.h;
+        cv.setAttribute('aria-hidden', 'true');
         card.appendChild(cv);
       }
       var name = document.createElement('div');
@@ -1226,7 +1204,7 @@
       c.setAttribute('aria-pressed', c.getAttribute('data-style') === s ? 'true' : 'false');
     });
     var strip = $('styleStrip'), sel = strip.querySelector('[aria-pressed="true"]');
-    if (sel) strip.scrollTo({ left: sel.offsetLeft - (strip.clientWidth - sel.clientWidth) / 2, behavior: 'smooth' });
+    if (sel) strip.scrollTo({ left: sel.offsetLeft - (strip.clientWidth - sel.clientWidth) / 2, behavior: scrollBehavior() });
     generate();
   }
 
@@ -1281,10 +1259,10 @@
       $('styleNext').disabled = strip.scrollLeft >= strip.scrollWidth - strip.clientWidth - 1;
     }
     $('stylePrev').addEventListener('click', function () {
-      strip.scrollBy({ left: -strip.clientWidth * 0.7, behavior: 'smooth' });
+      strip.scrollBy({ left: -strip.clientWidth * 0.7, behavior: scrollBehavior() });
     });
     $('styleNext').addEventListener('click', function () {
-      strip.scrollBy({ left: strip.clientWidth * 0.7, behavior: 'smooth' });
+      strip.scrollBy({ left: strip.clientWidth * 0.7, behavior: scrollBehavior() });
     });
     strip.addEventListener('scroll', sync);
     window.addEventListener('resize', sync);
@@ -1341,6 +1319,12 @@
       var lunarNote = res.style === 'danxiangli' && $('lunarOn').checked && lunarCache.failed ? ' · 农历获取失败' : '';
       status.textContent = res.style + ' · ' + W + ' × ' + H + lunarNote +
         (res.overflow ? ' · 文字过长，超出部分已截断' : '') + ' · 点击「下载 PNG」保存';
+      var label = STYLE_LABELS.filter(function (it) { return it[0] === res.style; })[0];
+      var chars = charsOf(text.trim());
+      var alt = (label ? label[1] : res.style) + '海报，' + W + ' × ' + H + '。' +
+        (chars.length ? chars.slice(0, 80).join('') + (chars.length > 80 ? '…' : '') : '内置每日一句');
+      $('posterAlt').textContent = alt;
+      $('previewDialog').setAttribute('aria-label', '海报预览：' + alt);
       document.body.classList.remove('busy');
     }, 20);
   }
@@ -1367,10 +1351,17 @@
     }, 'image/png');
   });
 
-  function togglePreview() { document.body.classList.toggle('preview-full'); }
-  canvas.addEventListener('click', togglePreview);
-  canvas.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePreview(); }
+  var previewBtn = $('previewBtn'), previewDialog = $('previewDialog');
+  previewBtn.addEventListener('click', function () {
+    previewDialog.insertBefore(canvas, $('previewClose'));
+    previewBtn.setAttribute('aria-expanded', 'true');
+    previewDialog.showModal();
+  });
+  $('previewClose').addEventListener('click', function () { previewDialog.close(); });
+  previewDialog.addEventListener('close', function () {
+    previewBtn.appendChild(canvas);
+    previewBtn.setAttribute('aria-expanded', 'false');
+    previewBtn.focus();
   });
 
   generate();
