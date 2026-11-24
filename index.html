@@ -21,6 +21,11 @@
   #panel h1 { font-size:22px; line-height:28px; font-weight:400; margin:0 0 4px; }
   #panel .sub { color:rgb(var(--mdui-color-on-surface-variant)); font-size:12px; margin:0 0 20px; }
   mdui-text-field, mdui-select { display:block; width:100%; }
+  mdui-select::part(menu) { max-height:min(60vh, 480px); overflow-y:auto; overscroll-behavior:contain; }
+  .menu-group { position:sticky; top:0; z-index:1; padding:8px 12px 4px;
+                background:rgb(var(--mdui-color-surface-container));
+                color:rgb(var(--mdui-color-on-surface-variant));
+                font-size:11px; letter-spacing:.08em; }
   mdui-text-field:not(:defined), mdui-select:not(:defined), mdui-checkbox:not(:defined),
   mdui-button:not(:defined), mdui-button-icon:not(:defined), mdui-menu-item:not(:defined) { visibility:hidden; }
   .field-block { margin-top:16px; }
@@ -1163,7 +1168,12 @@
 
   (function buildSizes() {
     var sel = $('size'), items = [];
-    SIZE_GROUPS.forEach(function (g) {
+    SIZE_GROUPS.forEach(function (g, gi) {
+      if (gi > 0) sel.appendChild(document.createElement('mdui-divider'));
+      var head = document.createElement('div');
+      head.className = 'menu-group';
+      head.textContent = g.label;
+      sel.appendChild(head);
       g.items.forEach(function (it) {
         var item = document.createElement('mdui-menu-item');
         item.setAttribute('value', String(items.length));
@@ -1172,6 +1182,7 @@
         items.push({ w: it[1], h: it[2] });
       });
     });
+    sel.appendChild(document.createElement('mdui-divider'));
     var custom = document.createElement('mdui-menu-item');
     custom.setAttribute('value', 'custom');
     custom.textContent = '自定义宽高';
